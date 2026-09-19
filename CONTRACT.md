@@ -10,18 +10,19 @@ Shared by backend/ and web/. Change it only after both of you agree.
 ## Accounts (v5)
 
 ```
-POST {API}/api/auth/register   JSON {"email": "you@example.com", "password": "at least 8 chars"}
-     → 201 {"email": "you@example.com"}   (creates the account only; the person then logs in)
+POST {API}/api/auth/register   JSON {"email": "you@example.com", "password": "at least 8 chars", "username": "Vinay"}
+     → 201 {"email": "you@example.com", "username": "Vinay"}   (creates the account only; the person then logs in)
 POST {API}/api/auth/login      JSON {"email": ..., "password": ...}
-     → 200 {"token": "...", "email": ...}
+     → 200 {"token": "...", "email": ..., "username": ...}
 POST {API}/api/auth/logout     (with the token) → 200 {"ok": true}; the token stops working
-GET  {API}/api/auth/me         (with the token) → 200 {"email": ...}
+GET  {API}/api/auth/me         (with the token) → 200 {"email": ..., "username": ...}
 ```
 
 | Field | Meaning |
 |---|---|
 | `token` | Send on every other request as `Authorization: Bearer <token>`. Valid for 7 days. |
-| `email` | Stored lowercased; `Vinay@X.com` and `vinay@x.com` are the same account. |
+| `email` | Stored lowercased; `Vinay@X.com` and `vinay@x.com` are the same account. Used to log in. |
+| `username` | Shown in the app ("Signed in as Vinay"). 2–30 characters: letters in any script, digits, spaces, `. _ -`. Accounts made before usernames existed get the part of the email before `@`. |
 | errors | 400 bad email or password length (8–128), 409 email already registered, 401 "Email or password is incorrect." (the same for an unknown email and a wrong password). |
 | 401 anywhere else | Not logged in or session expired: forget the token and show the login page. |
 

@@ -150,7 +150,7 @@ def test_reserved_partitions_can_never_be_a_person_id():
 
 
 def test_accounts_save_and_load_by_email(table):
-    account = Account("vinay@example.com", "pbkdf2_sha256$1000$salt$hash")
+    account = Account("vinay@example.com", "pbkdf2_sha256$1000$salt$hash", "Vinay G")
 
     save_account(table, account)
 

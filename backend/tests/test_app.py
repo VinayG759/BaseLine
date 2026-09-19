@@ -89,7 +89,7 @@ def services_for(backend, **overrides):
 
 def log_in(client, email=OWNER, password=PASSWORD):
     """Register (if needed), log in, and send the session token with every later request."""
-    client.post("/api/auth/register", json={"email": email, "password": password})
+    client.post("/api/auth/register", json={"email": email, "password": password, "username": "Vinay G"})
     r = client.post("/api/auth/login", json={"email": email, "password": password})
     client.headers["Authorization"] = f"Bearer {r.json()['token']}"
     return client
@@ -447,25 +447,26 @@ def anonymous(backend):
 
 
 def test_register_creates_the_account_but_does_not_log_in(anonymous, backend):
-    r = anonymous.post("/api/auth/register", json={"email": " Vinay@Example.com ", "password": PASSWORD})
+    r = anonymous.post("/api/auth/register",
+                       json={"email": " Vinay@Example.com ", "password": PASSWORD, "username": " Vinay G "})
 
     assert r.status_code == 201
-    assert r.json() == {"email": "vinay@example.com"}
+    assert r.json() == {"email": "vinay@example.com", "username": "Vinay G"}
     assert backend.sessions == {}
     assert PASSWORD not in backend.accounts["vinay@example.com"].password_hash
 
 
 def test_registering_the_same_email_twice_is_a_conflict(anonymous):
-    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD})
+    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD, "username": "Vinay"})
 
-    r = anonymous.post("/api/auth/register", json={"email": OWNER.upper(), "password": PASSWORD})
+    r = anonymous.post("/api/auth/register", json={"email": OWNER.upper(), "password": PASSWORD, "username": "Vinay"})
 
     assert r.status_code == 409
     assert set(r.json()) == {"error"}
 
 
-@pytest.mark.parametrize("body", [{"email": "not-an-email", "password": PASSWORD},
-                                  {"email": OWNER, "password": "short"}, {}])
+@pytest.mark.parametrize("body", [{"email": "not-an-email", "password": PASSWORD, "username": "Vinay"},
+                                  {"email": OWNER, "password": "short", "username": "Vinay"}, {}])
 def test_bad_registration_details_are_a_400_with_a_sentence(anonymous, body):
     r = anonymous.post("/api/auth/register", json=body)
 
@@ -474,19 +475,19 @@ def test_bad_registration_details_are_a_400_with_a_sentence(anonymous, body):
 
 
 def test_login_with_the_right_password_gives_a_working_token(anonymous):
-    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD})
+    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD, "username": "Vinay"})
 
     r = anonymous.post("/api/auth/login", json={"email": OWNER, "password": PASSWORD})
     me = anonymous.get("/api/auth/me", headers={"Authorization": f"Bearer {r.json()['token']}"})
 
     assert r.status_code == 200
-    assert me.json() == {"email": OWNER}
+    assert me.json() == {"email": OWNER, "username": "Vinay"}
 
 
 @pytest.mark.parametrize("body", [{"email": OWNER, "password": "wrong password"},
                                   {"email": "nobody@example.com", "password": PASSWORD}])
 def test_wrong_password_and_unknown_email_get_the_same_answer(anonymous, body):
-    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD})
+    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD, "username": "Vinay"})
 
     r = anonymous.post("/api/auth/login", json=body)
 
@@ -550,3 +551,20 @@ def test_people_i_add_belong_to_my_account(backend):
 
     assert [p["name"] for p in mine.get("/api/people").json()["people"]] == ["Ramesh Rao", "Sunita Rao"]
     assert [p["name"] for p in theirs.get("/api/people").json()["people"]] == ["Kavya Rao"]
+
+
+def test_register_needs_a_username(anonymous):
+    r = anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD})
+
+    assert r.status_code == 400
+    assert "username" in r.json()["error"]
+
+
+def test_login_and_me_return_the_username(anonymous):
+    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD, "username": "Vinay G"})
+
+    login = anonymous.post("/api/auth/login", json={"email": OWNER, "password": PASSWORD}).json()
+    me = anonymous.get("/api/auth/me", headers={"Authorization": f"Bearer {login['token']}"}).json()
+
+    assert login["username"] == "Vinay G"
+    assert me == {"email": OWNER, "username": "Vinay G"}

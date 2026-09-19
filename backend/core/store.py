@@ -95,12 +95,12 @@ def load_people(table, owner: str) -> list[Person]:
 
 def save_account(table, account: Account) -> None:
     table.put_item(Item={"personId": ACCOUNTS_PARTITION, "sk": account.email,
-                         "password_hash": account.password_hash})
+                         "password_hash": account.password_hash, "username": account.username})
 
 
 def load_account(table, email: str) -> Account | None:
     item = table.get_item(Key={"personId": ACCOUNTS_PARTITION, "sk": email}).get("Item")
-    return Account(item["sk"], item["password_hash"]) if item else None
+    return Account(item["sk"], item["password_hash"], item.get("username", "")) if item else None
 
 
 def save_session(table, session: Session) -> None:

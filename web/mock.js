@@ -109,9 +109,13 @@ const MockAPI = (() => {
     },
 
     // POST /api/auth/register and /api/auth/login: any valid-looking email and 8+ character password
-    async register(email, password) {
+    async register(email, password, username = "") {
+      const cleanName = username.trim().replace(/\s+/g, " ");
+      if (cleanName.length < 2 || cleanName.length > 30) {
+        throw new Error("Choose a username of 2 to 30 letters or digits.");
+      }
       const { email: cleanEmail } = await this.login(email, password);
-      return { email: cleanEmail };
+      return { email: cleanEmail, username: cleanName };
     },
 
     async login(email = "", password = "") {
@@ -123,7 +127,7 @@ const MockAPI = (() => {
       if (password.length < 8 || password.length > 128) {
         throw new Error("Use a password of 8 to 128 characters.");
       }
-      return { token: "mock-token", email: cleanEmail };
+      return { token: "mock-token", email: cleanEmail, username: cleanEmail.split("@")[0] };
     },
 
     // GET /api/people

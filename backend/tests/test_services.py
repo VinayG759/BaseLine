@@ -31,7 +31,7 @@ def test_a_missing_setting_is_named_in_the_error(no_settings, monkeypatch):
 def test_unconfigured_app_starts_and_answers_503_instead_of_crashing(no_settings):
     client = TestClient(create_app(aws_services()))
 
-    r = client.post("/api/auth/register", json={"email": "vinay@example.com", "password": "long enough"})
+    r = client.post("/api/auth/register", json={"email": "vinay@example.com", "password": "long enough", "username": "Vinay"})
 
     assert r.status_code == 503
     assert set(r.json()) == {"error"}

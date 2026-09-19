@@ -3,8 +3,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from core import auth
-from core.auth import (AuthError, BadCredentials, EmailTaken, Session, check_new_account, hash_password,
-                       hash_token, new_session, normalise_email, session_is_valid, verify_password)
+from core.auth import (Account, AuthError, BadCredentials, EmailTaken, Session, check_new_account, check_username,
+                       display_username, hash_password, hash_token, new_session, normalise_email, session_is_valid,
+                       verify_password)
 
 
 def test_default_password_hashing_is_strong():
@@ -70,3 +71,19 @@ def test_sessions_expire_after_7_days():
     assert session_is_valid(session, now=start + timedelta(days=6, hours=23))
     assert not session_is_valid(session, now=start + timedelta(days=7, seconds=1))
     assert not session_is_valid(None, now=start)
+
+
+@pytest.mark.parametrize("username", ["Vinay", "Vinay G", "vinay_g.759", "ವಿನಯ್", "Dr-K"])
+def test_usernames_in_any_script_are_accepted_and_tidied(username):
+    assert check_username("  " + username + "  ") == username
+
+
+@pytest.mark.parametrize("username", ["", " ", "V", "x" * 31, "<b>Vinay</b>", "vinay@example.com"])
+def test_bad_usernames_are_rejected_with_a_sentence(username):
+    with pytest.raises(AuthError, match="username"):
+        check_username(username)
+
+
+def test_display_username_falls_back_to_the_start_of_the_email():
+    assert display_username(Account("vinay@example.com", "h", "Vinay G")) == "Vinay G"
+    assert display_username(Account("vinay@example.com", "h")) == "vinay"

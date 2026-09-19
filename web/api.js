@@ -33,10 +33,14 @@ const Auth = {
   email() {
     try { return localStorage.getItem("baseline_email"); } catch { return null; }
   },
-  save(token, email) {
+  username() {
+    try { return localStorage.getItem("baseline_username"); } catch { return null; }
+  },
+  save(token, email, username) {
     try {
       localStorage.setItem("baseline_token", token);
       localStorage.setItem("baseline_email", email);
+      localStorage.setItem("baseline_username", username || "");
     } catch (e) {
       console.warn("localStorage write failed:", e);
     }
@@ -45,6 +49,7 @@ const Auth = {
     try {
       localStorage.removeItem("baseline_token");
       localStorage.removeItem("baseline_email");
+      localStorage.removeItem("baseline_username");
     } catch {}
   },
   goToLogin() {
@@ -71,13 +76,13 @@ const API = (() => {
     return res;
   }
 
-  /** POST {email, password} to an auth endpoint; returns the JSON reply. */
-  async function postCredentials(path, email, password) {
+  /** POST credentials to an auth endpoint; returns the JSON reply. */
+  async function postCredentials(path, body) {
     try {
       const res = await fetch(`${CONFIG.apiUrl}${path}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify(body)
       });
       if (!res.ok) throw await handleErrorResponse(res);
       return await res.json();
@@ -108,18 +113,18 @@ const API = (() => {
   }
 
   return {
-    /** Creates the account only; the person then logs in. Returns {email}. */
-    async register(email, password) {
-      if (CONFIG.useMock) return MockAPI.register(email, password);
-      return postCredentials("/api/auth/register", email, password);
+    /** Creates the account only; the person then logs in. Returns {email, username}. */
+    async register(email, password, username) {
+      if (CONFIG.useMock) return MockAPI.register(email, password, username);
+      return postCredentials("/api/auth/register", { email, password, username });
     },
 
-    /** Logs in and remembers the session in this browser. Returns {token, email}. */
+    /** Logs in and remembers the session in this browser. Returns {token, email, username}. */
     async login(email, password) {
       const data = CONFIG.useMock
         ? await MockAPI.login(email, password)
-        : await postCredentials("/api/auth/login", email, password);
-      Auth.save(data.token, data.email);
+        : await postCredentials("/api/auth/login", { email, password });
+      Auth.save(data.token, data.email, data.username);
       return data;
     },
 

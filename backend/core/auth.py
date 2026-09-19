@@ -9,6 +9,7 @@ import hashlib
 import hmac
 import re
 import secrets
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -17,6 +18,8 @@ ITERATIONS = DEFAULT_ITERATIONS
 SESSION_DAYS = 7
 MIN_PASSWORD, MAX_PASSWORD = 8, 128
 EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
+MIN_USERNAME, MAX_USERNAME = 2, 30
+USERNAME_PUNCTUATION = set(" ._-")
 
 
 class AuthError(ValueError):
@@ -35,6 +38,7 @@ class BadCredentials(AuthError):
 class Account:
     email: str
     password_hash: str
+    username: str = ""   # shown in the app; accounts made before usernames existed have none
 
 
 @dataclass(frozen=True)
@@ -50,6 +54,19 @@ def normalise_email(email: str) -> str:
 
 def _b64(raw: bytes) -> str:
     return base64.b64encode(raw).decode()
+
+
+def check_username(username: str) -> str:
+    """Letters in any script (with Kannada/Hindi vowel signs), digits, spaces and . _ -; returns it tidied."""
+    username = " ".join((username or "").split())
+    ok_chars = all(c in USERNAME_PUNCTUATION or unicodedata.category(c)[0] in "LMN" for c in username)
+    if not MIN_USERNAME <= len(username) <= MAX_USERNAME or not ok_chars:
+        raise AuthError(f"Choose a username of {MIN_USERNAME} to {MAX_USERNAME} letters or digits.")
+    return username
+
+
+def display_username(account: Account) -> str:
+    return account.username or account.email.split("@")[0]
 
 
 def hash_password(password: str) -> str:

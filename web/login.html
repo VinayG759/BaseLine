@@ -34,6 +34,11 @@
       </div>
 
       <form id="auth-form" class="auth-form" novalidate>
+        <div id="username-row" hidden>
+          <label for="auth-username" class="auth-label">Username</label>
+          <input type="text" id="auth-username" class="date-input auth-input" autocomplete="nickname" maxlength="30" placeholder="What should we call you?">
+        </div>
+
         <div>
           <label for="auth-email" class="auth-label">Email</label>
           <input type="email" id="auth-email" class="date-input auth-input" autocomplete="email" required maxlength="254" placeholder="you@example.com">
@@ -77,6 +82,8 @@
       const tabLogin = document.getElementById("tab-login");
       const tabRegister = document.getElementById("tab-register");
       const confirmRow = document.getElementById("confirm-row");
+      const usernameRow = document.getElementById("username-row");
+      const username = document.getElementById("auth-username");
       const password = document.getElementById("auth-password");
       const confirm = document.getElementById("auth-confirm");
       const submit = document.getElementById("auth-submit");
@@ -92,6 +99,7 @@
         tabLogin.setAttribute("aria-selected", String(!isRegister));
         tabRegister.setAttribute("aria-selected", String(isRegister));
         confirmRow.hidden = !isRegister;
+        usernameRow.hidden = !isRegister;
         password.autocomplete = isRegister ? "new-password" : "current-password";
         submit.textContent = isRegister ? "Create account" : "Log in";
         greeting.textContent = isRegister
@@ -119,12 +127,12 @@
         try {
           if (mode === "register") {
             // Account created: switch to the login tab so the person logs in themselves.
-            const created = await API.register(email, password.value);
+            const created = await API.register(email, password.value, username.value);
             setMode("login");
             document.getElementById("auth-email").value = created.email;
             password.value = "";
             confirm.value = "";
-            notice.textContent = "Account created. Log in with your new password.";
+            notice.textContent = `Account created, ${created.username}. Log in with your new password.`;
             submit.disabled = false;
             password.focus();
             return;

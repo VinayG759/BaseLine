@@ -235,8 +235,12 @@ const BaselineApp = {
       Auth.goToLogin();
       return;
     }
-    const emailEl = document.getElementById("account-email");
-    if (emailEl) emailEl.textContent = Auth.email() || "";
+    const username = Auth.username() || (Auth.email() || "").split("@")[0];
+    const nameEl = document.getElementById("account-name");
+    if (nameEl) {
+      nameEl.textContent = username;
+      nameEl.title = Auth.email() || "";
+    }
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async () => {
@@ -247,6 +251,7 @@ const BaselineApp = {
     }
 
     Mascot.init(document.getElementById("mascot-container"));
+    if (username) Mascot.say(`Hi ${username}! Loading your health records...`, "wave");
     this.bindEvents();
     this.loadSavedLanguage();
     await this.loadPeople();

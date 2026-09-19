@@ -22,8 +22,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from mangum import Mangum
 
-from core.auth import (Account, AuthError, EmailTaken, check_new_account, hash_password, hash_token, new_session,
-                       normalise_email, session_is_valid, utc_now, verify_password)
+from core.auth import (Account, AuthError, EmailTaken, check_new_account, check_username, display_username,
+                       hash_password, hash_token, new_session, normalise_email, session_is_valid, utc_now,
+                       verify_password)
 from core.doctor import doctor_view
 from core.explain import summarise
 from core.extract import ExtractionError
@@ -54,6 +55,7 @@ BAD_LOGIN = "Email or password is incorrect."
 class Credentials(BaseModel):
     email: str | None = None
     password: str | None = None
+    username: str | None = None   # register only
 
 
 class NewPerson(BaseModel):
@@ -135,10 +137,10 @@ def create_app(
         request.state.token_hash = token_hash
         return session.email
 
-    def start_session(email: str) -> dict:
-        token, session = new_session(email, app.state.now())
+    def start_session(account: Account) -> dict:
+        token, session = new_session(account.email, app.state.now())
         _call(services.save_session, session)
-        return {"token": token, "email": email}
+        return {"token": token, "email": account.email, "username": display_username(account)}
 
     def check_person(person_id: str | None, owner: str) -> str:
         """A valid ID that belongs to one of this account's people, or a 400/404 with a sentence."""
@@ -165,13 +167,14 @@ def create_app(
     def register(body: Credentials):
         email, password = normalise_email(body.email), body.password or ""
         try:
+            username = check_username(body.username or "")
             check_new_account(email, password, _call(services.load_account, email))
         except EmailTaken as e:
             _fail(409, str(e))
         except AuthError as e:
             _fail(400, str(e))
-        _call(services.save_account, Account(email, hash_password(password)))
-        return {"email": email}   # no session: the person logs in next, on the login page
+        _call(services.save_account, Account(email, hash_password(password), username))
+        return {"email": email, "username": username}   # no session: the person logs in next
 
     @app.post("/api/auth/login")
     def login(body: Credentials):
@@ -179,7 +182,7 @@ def create_app(
         account = _call(services.load_account, email)
         if not verify_password(password, account.password_hash if account else dummy_hash) or account is None:
             _fail(401, BAD_LOGIN)
-        return start_session(email)
+        return start_session(account)
 
     @app.post("/api/auth/logout")
     def logout(request: Request, owner: str = Depends(current_owner)):
@@ -188,7 +191,8 @@ def create_app(
 
     @app.get("/api/auth/me")
     def me(owner: str = Depends(current_owner)):
-        return {"email": owner}
+        account = _call(services.load_account, owner)
+        return {"email": owner, "username": display_username(account) if account else owner.split("@")[0]}
 
     @app.get("/api/people")
     def get_people(owner: str = Depends(current_owner)):
