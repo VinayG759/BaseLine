@@ -89,7 +89,8 @@ const Mascot = (() => {
      */
     evaluateState(person, trendsData) {
       if (!person) {
-        this.say("Please select or add a person to view history.", "wave");
+        const name = (typeof Auth !== "undefined" && Auth.username()) || "there";
+        this.say(`Hi ${name}! Let's begin: tap "+ Add person" to add yourself or a family member.`, "wave");
         return;
       }
 

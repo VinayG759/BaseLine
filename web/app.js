@@ -289,6 +289,8 @@ const BaselineApp = {
       this.renderPeopleDropdown();
       if (State.currentPerson) {
         await this.loadTrends();
+      } else {
+        Mascot.evaluateState(null, null);
       }
     } catch (err) {
       Mascot.setError(err.message);
@@ -301,6 +303,19 @@ const BaselineApp = {
     if (!select) return;
 
     select.innerHTML = "";
+    const addBtn = document.getElementById("open-add-person-btn");
+    if (State.people.length === 0) {
+      // Nobody yet: say so in the dropdown and draw attention to "+ Add person".
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "No one added yet";
+      option.disabled = true;
+      option.selected = true;
+      select.appendChild(option);
+      if (addBtn) addBtn.classList.add("needs-attention");
+    } else if (addBtn) {
+      addBtn.classList.remove("needs-attention");
+    }
     State.people.forEach((person) => {
       const option = document.createElement("option");
       option.value = person.person_id;
@@ -580,14 +595,28 @@ const BaselineApp = {
    * Screen D: Upload Report
    */
   async submitReport() {
-    if (!State.selectedPhotoBlob || State.isUploading || !State.currentPerson) return;
-
-    State.isUploading = true;
+    if (State.isUploading) return;
     const readBtn = document.getElementById("read-report-btn");
     const uploadStatus = document.getElementById("upload-status");
     const customDateInput = document.getElementById("custom-report-date");
 
+    // Never fail silently: say what's missing.
+    const missing = !State.currentPerson
+      ? "Add a person first: tap \"+ Add person\", then read the report."
+      : !State.selectedPhotoBlob
+        ? "Take or choose a photo of the report first."
+        : null;
+    if (missing) {
+      uploadStatus.textContent = missing;
+      uploadStatus.className = "upload-status status-error";
+      Mascot.say(missing, "shrug");
+      return;
+    }
+
+    State.isUploading = true;
     readBtn.disabled = true;
+    readBtn.classList.add("btn-loading");
+    readBtn.textContent = "Reading...";
 
     // Technical Concept: aria-live
     // aria-live="polite" notifies screen readers of progressive background state changes without interrupting current speech.
@@ -647,6 +676,8 @@ const BaselineApp = {
       readBtn.disabled = false;
     } finally {
       State.isUploading = false;
+      readBtn.classList.remove("btn-loading");
+      readBtn.textContent = "Read report";
     }
   },
 

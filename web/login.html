@@ -46,12 +46,18 @@
 
         <div>
           <label for="auth-password" class="auth-label">Password</label>
-          <input type="password" id="auth-password" class="date-input auth-input" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters">
+          <div class="password-field">
+            <input type="password" id="auth-password" class="date-input auth-input" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters">
+            <button type="button" class="reveal-btn" data-target="auth-password" aria-label="Show password" aria-pressed="false">👁</button>
+          </div>
         </div>
 
         <div id="confirm-row" hidden>
           <label for="auth-confirm" class="auth-label">Confirm password</label>
-          <input type="password" id="auth-confirm" class="date-input auth-input" autocomplete="new-password" maxlength="128" placeholder="Type it again">
+          <div class="password-field">
+            <input type="password" id="auth-confirm" class="date-input auth-input" autocomplete="new-password" maxlength="128" placeholder="Type it again">
+            <button type="button" class="reveal-btn" data-target="auth-confirm" aria-label="Show password" aria-pressed="false">👁</button>
+          </div>
         </div>
 
         <div id="auth-notice" class="auth-notice" role="status"></div>
@@ -108,6 +114,18 @@
         errorBox.textContent = "";
         notice.textContent = "";
       }
+
+      // Show / hide password: switch the input between type "password" and "text".
+      document.querySelectorAll(".reveal-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const input = document.getElementById(btn.dataset.target);
+          const show = input.type === "password";
+          input.type = show ? "text" : "password";
+          btn.setAttribute("aria-pressed", String(show));
+          btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+          btn.textContent = show ? "🙈" : "👁";
+        });
+      });
 
       tabLogin.addEventListener("click", () => setMode("login"));
       tabRegister.addEventListener("click", () => setMode("register"));
