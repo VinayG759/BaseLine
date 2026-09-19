@@ -1,7 +1,7 @@
 """Stage 1 of the pipeline: the model reads the report; this module checks what it read.
 
-parse() needs no network, so it is tested with made-up model replies. The
-function that sends the image to a model is added once model access works.
+extract() sends the photo to a Bedrock model. parse() turns the model's text
+into readings and needs no network, so it is tested with made-up replies.
 """
 import json
 import re
@@ -10,6 +10,21 @@ from dataclasses import dataclass
 from core.trends import Reading
 
 UNREADABLE = "This image couldn’t be read as a lab report. Try a sharper, flatter photo."
+
+PROMPT = """You are reading a photo of a printed medical lab report.
+Return ONLY a JSON object, with no other text, in exactly this shape:
+{"report_date": "YYYY-MM-DD or null", "lab_name": "string or null",
+ "readings": [{"test_name": "...", "value": 0.0, "unit": "...", "ref_low": 0.0, "ref_high": 0.0}]}
+
+Rules:
+- Copy every value exactly as printed. Never estimate, round or correct a number.
+- A range printed "4.0 - 5.6" means ref_low 4.0 and ref_high 5.6.
+- A range printed "< 200" means ref_low null and ref_high 200. "> 40" means ref_low 40 and ref_high null.
+- If no range is printed, use null for both.
+- Skip any row whose result is not a number (for example "Negative" or "Pale yellow").
+- Ignore the "H" or "L" flags next to results; they are not part of the value.
+- report_date is the date the sample was collected or reported, as YYYY-MM-DD. Use null if you cannot read it.
+- If this is not a lab report, return {"report_date": null, "lab_name": null, "readings": []}."""
 
 
 class ExtractionError(Exception):
@@ -80,3 +95,19 @@ def parse(text: str) -> Extracted:
 
     return Extracted(report_date=date, lab_name=lab if isinstance(lab, str) and lab.strip() else None,
                      readings=readings)
+
+
+def extract(image: bytes, image_format: str, model_id: str, client) -> Extracted:
+    """`client` is a boto3 bedrock-runtime client. Temperature 0: same photo, same numbers."""
+    response = client.converse(
+        modelId=model_id,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"image": {"format": image_format, "source": {"bytes": image}}},
+                {"text": PROMPT},
+            ],
+        }],
+        inferenceConfig={"temperature": 0, "maxTokens": 2000},
+    )
+    return parse(response["output"]["message"]["content"][0]["text"])
