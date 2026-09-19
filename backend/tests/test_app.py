@@ -23,21 +23,41 @@ REPORTS = {
 }
 
 
-SLOTS = ("read_report", "save_image", "save_readings", "load_readings", "list_people", "save_person")
+SLOTS = ("read_report", "save_image", "save_readings", "load_readings", "list_people", "save_person",
+         "save_account", "load_account", "save_session", "load_session", "delete_session")
+OWNER = "vinay@example.com"
+PASSWORD = "correct horse battery"
 
 
 class FakeBackend:
     def __init__(self):
         self.rows = {}      # (person, test_key, date) -> Reading, like the DynamoDB keys
         self.images = {}
-        self.people = {p.person_id: p for p in (Person("amma", "Mrs", "Sunita Rao", False),
-                                                Person("appa", "Mr", "Ramesh Rao", False))}
+        self.people = {OWNER: {p.person_id: p for p in (Person("amma", "Mrs", "Sunita Rao", False),
+                                                        Person("appa", "Mr", "Ramesh Rao", False))}}
+        self.accounts = {}
+        self.sessions = {}
 
-    def list_people(self):
-        return list(self.people.values())
+    def list_people(self, owner):
+        return list(self.people.get(owner, {}).values())
 
-    def save_person(self, person):
-        self.people[person.person_id] = person
+    def save_person(self, owner, person):
+        self.people.setdefault(owner, {})[person.person_id] = person
+
+    def save_account(self, account):
+        self.accounts[account.email] = account
+
+    def load_account(self, email):
+        return self.accounts.get(email)
+
+    def save_session(self, session):
+        self.sessions[session.token_hash] = session
+
+    def load_session(self, token_hash):
+        return self.sessions.get(token_hash)
+
+    def delete_session(self, token_hash):
+        self.sessions.pop(token_hash, None)
 
     def read_report(self, image: bytes, image_format: str) -> Extracted:
         if image not in REPORTS:
@@ -67,9 +87,23 @@ def services_for(backend, **overrides):
     return Services(**{**{name: getattr(backend, name) for name in SLOTS}, **overrides})
 
 
+def log_in(client, email=OWNER, password=PASSWORD):
+    """Register (first time) and send the session token with every later request."""
+    r = client.post("/api/auth/register", json={"email": email, "password": password})
+    if r.status_code == 409:
+        r = client.post("/api/auth/login", json={"email": email, "password": password})
+    client.headers["Authorization"] = f"Bearer {r.json()['token']}"
+    return client
+
+
+def make_client(backend, raise_server_exceptions=True, **overrides):
+    app = create_app(services_for(backend, **overrides), today=lambda: date(2026, 9, 19))
+    return log_in(TestClient(app, raise_server_exceptions=raise_server_exceptions))
+
+
 @pytest.fixture
 def client(backend):
-    return TestClient(create_app(services_for(backend), today=lambda: date(2026, 9, 19)))
+    return make_client(backend)
 
 
 def upload(client, image, person_id="amma", report_date=None, content_type="image/jpeg", lang=None):
@@ -228,7 +262,7 @@ def test_a_failing_service_still_answers_in_the_contract_shape_with_cors(backend
     def broken(*args):
         raise RuntimeError("AWS is having a bad day")
 
-    client = TestClient(create_app(services_for(backend, **{slot: broken})), raise_server_exceptions=False)
+    client = make_client(backend, raise_server_exceptions=False, **{slot: broken})
 
     r = client.post("/api/reports", data={"person_id": "amma"},
                     files={"file": ("r.jpg", b"september", "image/jpeg")},
@@ -263,8 +297,7 @@ def test_trends_carry_a_next_test_reminder(client):
 
 def test_kannada_summaries_come_from_the_phrase_service(backend):
     kn = "HbA1c ಸತತ 2 ಬಾರಿ ಏರಿದೆ (5.6 → 6.1 → 6.4 %)."
-    client = TestClient(create_app(services_for(
-        backend, phrase=lambda templates, lang: {"hba1c": kn} if lang == "kn" else templates)))
+    client = make_client(backend, phrase=lambda templates, lang: {"hba1c": kn} if lang == "kn" else templates)
     upload(client, b"march")
     upload(client, b"august")
 
@@ -280,7 +313,7 @@ def test_a_failing_phrase_service_still_answers_200_in_english(backend):
     def broken(templates, lang):
         raise RuntimeError("Bedrock unavailable")
 
-    client = TestClient(create_app(services_for(backend, phrase=broken)))
+    client = make_client(backend, phrase=broken)
     upload(client, b"march")
 
     r = client.get("/api/trends", params={"person_id": "amma", "lang": "hi"})
@@ -292,7 +325,7 @@ def test_a_failing_phrase_service_still_answers_200_in_english(backend):
 # ---- Chat ----
 
 def chat_client(backend, chat):
-    return TestClient(create_app(services_for(backend, chat=chat)))
+    return make_client(backend, chat=chat)
 
 
 def test_chat_answers_about_the_persons_own_readings(backend):
@@ -405,3 +438,116 @@ def test_unknown_people_get_404_everywhere(client, backend, call):
     assert r.status_code == 404
     assert set(r.json()) == {"error"}
     assert backend.rows == {} and backend.images == {}
+
+
+# ---- Login ----
+
+@pytest.fixture
+def anonymous(backend):
+    return TestClient(create_app(services_for(backend), today=lambda: date(2026, 9, 19)))
+
+
+def test_register_returns_a_token_and_the_email(anonymous, backend):
+    r = anonymous.post("/api/auth/register", json={"email": " Vinay@Example.com ", "password": PASSWORD})
+
+    assert r.status_code == 201
+    assert r.json()["email"] == "vinay@example.com"
+    assert len(r.json()["token"]) >= 40
+    assert PASSWORD not in backend.accounts["vinay@example.com"].password_hash
+
+
+def test_registering_the_same_email_twice_is_a_conflict(anonymous):
+    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD})
+
+    r = anonymous.post("/api/auth/register", json={"email": OWNER.upper(), "password": PASSWORD})
+
+    assert r.status_code == 409
+    assert set(r.json()) == {"error"}
+
+
+@pytest.mark.parametrize("body", [{"email": "not-an-email", "password": PASSWORD},
+                                  {"email": OWNER, "password": "short"}, {}])
+def test_bad_registration_details_are_a_400_with_a_sentence(anonymous, body):
+    r = anonymous.post("/api/auth/register", json=body)
+
+    assert r.status_code == 400
+    assert set(r.json()) == {"error"}
+
+
+def test_login_with_the_right_password_gives_a_working_token(anonymous):
+    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD})
+
+    r = anonymous.post("/api/auth/login", json={"email": OWNER, "password": PASSWORD})
+    me = anonymous.get("/api/auth/me", headers={"Authorization": f"Bearer {r.json()['token']}"})
+
+    assert r.status_code == 200
+    assert me.json() == {"email": OWNER}
+
+
+@pytest.mark.parametrize("body", [{"email": OWNER, "password": "wrong password"},
+                                  {"email": "nobody@example.com", "password": PASSWORD}])
+def test_wrong_password_and_unknown_email_get_the_same_answer(anonymous, body):
+    anonymous.post("/api/auth/register", json={"email": OWNER, "password": PASSWORD})
+
+    r = anonymous.post("/api/auth/login", json=body)
+
+    assert r.status_code == 401
+    assert r.json() == {"error": "Email or password is incorrect."}
+
+
+@pytest.mark.parametrize("call", [
+    lambda c: c.get("/api/people"),
+    lambda c: c.post("/api/people", json={"name": "Kavya Rao"}),
+    lambda c: c.get("/api/trends", params={"person_id": "amma"}),
+    lambda c: c.get("/api/doctor", params={"person_id": "amma"}),
+    lambda c: c.post("/api/chat", json={"person_id": "amma", "question": "Hi"}),
+    lambda c: upload(c, b"september"),
+    lambda c: c.get("/api/auth/me"),
+])
+def test_every_data_endpoint_needs_a_login(anonymous, backend, call):
+    r = call(anonymous)
+
+    assert r.status_code == 401
+    assert set(r.json()) == {"error"}
+    assert backend.rows == {} and backend.images == {}
+
+
+def test_a_made_up_token_is_refused(anonymous):
+    r = anonymous.get("/api/people", headers={"Authorization": "Bearer not-a-real-token"})
+
+    assert r.status_code == 401
+
+
+def test_an_expired_session_is_refused(backend):
+    from datetime import datetime, timezone
+    later = datetime(2027, 1, 1, tzinfo=timezone.utc)
+    client = make_client(backend)
+    client.app.state.now = lambda: later   # 7+ days after login
+
+    assert client.get("/api/people").status_code == 401
+
+
+def test_logout_ends_the_session(client):
+    assert client.post("/api/auth/logout").status_code == 200
+
+    assert client.get("/api/people").status_code == 401
+
+
+def test_another_account_cannot_see_or_open_my_people(backend):
+    mine = make_client(backend)
+    theirs = log_in(TestClient(mine.app), email="chethan@example.com")
+
+    assert theirs.get("/api/people").json() == {"people": []}
+    assert theirs.get("/api/trends", params={"person_id": "amma"}).status_code == 404
+    assert upload(theirs, b"september", person_id="amma").status_code == 404
+    assert backend.rows == {}
+
+
+def test_people_i_add_belong_to_my_account(backend):
+    mine = make_client(backend)
+    theirs = log_in(TestClient(mine.app), email="chethan@example.com")
+
+    theirs.post("/api/people", json={"name": "Kavya Rao"})
+
+    assert [p["name"] for p in mine.get("/api/people").json()["people"]] == ["Ramesh Rao", "Sunita Rao"]
+    assert [p["name"] for p in theirs.get("/api/people").json()["people"]] == ["Kavya Rao"]

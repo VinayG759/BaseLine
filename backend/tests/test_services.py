@@ -31,7 +31,7 @@ def test_a_missing_setting_is_named_in_the_error(no_settings, monkeypatch):
 def test_unconfigured_app_starts_and_answers_503_instead_of_crashing(no_settings):
     client = TestClient(create_app(aws_services()))
 
-    r = client.get("/api/trends", params={"person_id": "amma"})
+    r = client.post("/api/auth/register", json={"email": "vinay@example.com", "password": "long enough"})
 
     assert r.status_code == 503
     assert set(r.json()) == {"error"}
@@ -57,9 +57,9 @@ def test_people_are_saved_and_listed_through_dynamodb(configured_aws):
     services = aws_services()
     sunita = Person("sunita-rao-4f2a", "Mrs", "Sunita Rao", False)
 
-    services.save_person(sunita)
+    services.save_person("vinay@example.com", sunita)
 
-    assert services.list_people() == [sunita]
+    assert services.list_people("vinay@example.com") == [sunita]
 
 
 # ---- Choosing the model provider ----

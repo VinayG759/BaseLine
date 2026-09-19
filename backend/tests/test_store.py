@@ -6,7 +6,10 @@ import pytest
 from moto import mock_aws
 
 from core.people import Person
-from core.store import PEOPLE_PARTITION, from_item, load_people, load_readings, save_image, save_person, save_readings, to_item
+from core.auth import Account, Session
+from core.store import (ACCOUNTS_PARTITION, SESSIONS_PARTITION, delete_session, from_item, load_account, load_people,
+                        load_readings, load_session, people_partition, save_account, save_image, save_person,
+                        save_readings, save_session, to_item)
 from core.trends import Reading
 
 HBA1C = Reading("hba1c", "HbA1c", 6.4, "%", 4.0, 5.6, "2026-09-12")
@@ -115,29 +118,51 @@ def test_image_is_stored_under_person_and_report(s3):
     assert obj["ContentType"] == "image/jpeg"
 
 
-def test_saved_people_load_back(table):
+def test_saved_people_load_back_for_their_owner(table):
     sunita = Person("sunita-rao-4f2a", "Mrs", "Sunita Rao", False)
     me = Person("arjun-rao-1a2b", "Mr", "Arjun Rao", True)
 
-    save_person(table, sunita)
-    save_person(table, me)
+    save_person(table, "vinay@example.com", sunita)
+    save_person(table, "vinay@example.com", me)
 
-    assert sorted(load_people(table), key=lambda p: p.person_id) == [me, sunita]
+    assert sorted(load_people(table, "vinay@example.com"), key=lambda p: p.person_id) == [me, sunita]
+
+
+def test_each_account_sees_only_its_own_people(table):
+    save_person(table, "vinay@example.com", Person("sunita-rao-4f2a", "Mrs", "Sunita Rao", False))
+
+    assert load_people(table, "chethan@example.com") == []
 
 
 def test_people_are_not_mixed_up_with_readings(table):
-    save_person(table, Person("sunita-rao-4f2a", "Mrs", "Sunita Rao", False))
+    save_person(table, "vinay@example.com", Person("sunita-rao-4f2a", "Mrs", "Sunita Rao", False))
     save_readings(table, "sunita-rao-4f2a", [HBA1C], "r1", "k")
 
     assert load_readings(table, "sunita-rao-4f2a") == [HBA1C]
-    assert [p.person_id for p in load_people(table)] == ["sunita-rao-4f2a"]
+    assert [p.person_id for p in load_people(table, "vinay@example.com")] == ["sunita-rao-4f2a"]
 
 
-def test_no_people_yet(table):
-    assert load_people(table) == []
+def test_reserved_partitions_can_never_be_a_person_id():
+    # Person IDs must match the contract pattern; reserved partitions must not,
+    # so a person's readings can never land among accounts, sessions or profiles.
+    for partition in (ACCOUNTS_PARTITION, SESSIONS_PARTITION, people_partition("vinay@example.com")):
+        assert not re.fullmatch(r"[a-z0-9-]{1,32}", partition)
 
 
-def test_the_people_partition_can_never_be_a_person_id():
-    # Person IDs must match the contract pattern; the people partition must not,
-    # so a person's readings can never land among the profiles.
-    assert not re.fullmatch(r"[a-z0-9-]{1,32}", PEOPLE_PARTITION)
+def test_accounts_save_and_load_by_email(table):
+    account = Account("vinay@example.com", "pbkdf2_sha256$1000$salt$hash")
+
+    save_account(table, account)
+
+    assert load_account(table, "vinay@example.com") == account
+    assert load_account(table, "nobody@example.com") is None
+
+
+def test_sessions_save_load_and_delete(table):
+    session = Session("abc123", "vinay@example.com", "2026-09-26T00:00:00+00:00")
+
+    save_session(table, session)
+    assert load_session(table, "abc123") == session
+
+    delete_session(table, "abc123")
+    assert load_session(table, "abc123") is None

@@ -15,13 +15,15 @@ from dataclasses import asdict, replace
 from datetime import date
 from typing import Callable
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from mangum import Mangum
 
+from core.auth import (Account, AuthError, EmailTaken, check_new_account, hash_password, hash_token, new_session,
+                       normalise_email, session_is_valid, utc_now, verify_password)
 from core.doctor import doctor_view
 from core.explain import summarise
 from core.extract import ExtractionError
@@ -43,6 +45,15 @@ log = logging.getLogger("baseline")
 
 def _fail(status: int, sentence: str):
     raise HTTPException(status_code=status, detail=sentence)
+
+
+LOGIN_NEEDED = "Please log in to continue."
+BAD_LOGIN = "Email or password is incorrect."
+
+
+class Credentials(BaseModel):
+    email: str | None = None
+    password: str | None = None
 
 
 class NewPerson(BaseModel):
@@ -96,8 +107,12 @@ def create_app(
     services: Services,
     today: Callable[[], date] = date.today,
     reword_english: bool = False,
+    now: Callable = utc_now,
 ) -> FastAPI:
     app = FastAPI(title="Baseline")
+    app.state.now = now
+    # Checked against when an email doesn't exist, so a wrong email takes as long as a wrong password.
+    dummy_hash = hash_password("not a real password")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
 
     @app.exception_handler(HTTPException)
@@ -108,10 +123,27 @@ def create_app(
     async def validation_error(_: Request, exc: RequestValidationError):
         return JSONResponse(status_code=400, content={"error": "Something in the request was missing or malformed."})
 
-    def check_person(person_id: str | None) -> str:
-        """A valid ID that belongs to someone in Baseline, or a 400/404 with a sentence."""
+    def current_owner(request: Request) -> str:
+        """The logged-in account's email, from the "Authorization: Bearer <token>" header, or a 401."""
+        scheme, _, token = request.headers.get("authorization", "").partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            _fail(401, LOGIN_NEEDED)
+        token_hash = hash_token(token)
+        session = _call(services.load_session, token_hash)
+        if not session_is_valid(session, request.app.state.now()):
+            _fail(401, LOGIN_NEEDED)
+        request.state.token_hash = token_hash
+        return session.email
+
+    def start_session(email: str) -> dict:
+        token, session = new_session(email, app.state.now())
+        _call(services.save_session, session)
+        return {"token": token, "email": email}
+
+    def check_person(person_id: str | None, owner: str) -> str:
+        """A valid ID that belongs to one of this account's people, or a 400/404 with a sentence."""
         person_id = _check_person(person_id)
-        if person_id not in {p.person_id for p in _call(services.list_people)}:
+        if person_id not in {p.person_id for p in _call(services.list_people, owner)}:
             _fail(404, "This person isn’t in Baseline yet. Add them first.")
         return person_id
 
@@ -129,36 +161,65 @@ def create_app(
             "reminder": reminder(readings, today()),
         }
 
+    @app.post("/api/auth/register", status_code=201)
+    def register(body: Credentials):
+        email, password = normalise_email(body.email), body.password or ""
+        try:
+            check_new_account(email, password, _call(services.load_account, email))
+        except EmailTaken as e:
+            _fail(409, str(e))
+        except AuthError as e:
+            _fail(400, str(e))
+        _call(services.save_account, Account(email, hash_password(password)))
+        return start_session(email)
+
+    @app.post("/api/auth/login")
+    def login(body: Credentials):
+        email, password = normalise_email(body.email), body.password or ""
+        account = _call(services.load_account, email)
+        if not verify_password(password, account.password_hash if account else dummy_hash) or account is None:
+            _fail(401, BAD_LOGIN)
+        return start_session(email)
+
+    @app.post("/api/auth/logout")
+    def logout(request: Request, owner: str = Depends(current_owner)):
+        _call(services.delete_session, request.state.token_hash)
+        return {"ok": True}
+
+    @app.get("/api/auth/me")
+    def me(owner: str = Depends(current_owner)):
+        return {"email": owner}
+
     @app.get("/api/people")
-    def get_people():
-        return {"people": [p.as_dict() for p in sort_people(_call(services.list_people))]}
+    def get_people(owner: str = Depends(current_owner)):
+        return {"people": [p.as_dict() for p in sort_people(_call(services.list_people, owner))]}
 
     @app.post("/api/people", status_code=201)
-    def post_person(body: NewPerson):
-        existing = _call(services.list_people)
+    def post_person(body: NewPerson, owner: str = Depends(current_owner)):
+        existing = _call(services.list_people, owner)
         try:
             person = new_person(body.title or "", body.name or "", body.is_self, existing)
         except SelfProfileExists as e:
             _fail(409, str(e))
         except PersonError as e:
             _fail(400, str(e))
-        _call(services.save_person, person)
+        _call(services.save_person, owner, person)
         return person.as_dict()
 
     @app.get("/api/trends")
-    def get_trends(person_id: str | None = None, lang: str | None = None):
-        person_id = check_person(person_id)
+    def get_trends(person_id: str | None = None, lang: str | None = None, owner: str = Depends(current_owner)):
+        person_id = check_person(person_id, owner)
         lang = _check_lang(lang)
         return build_response(person_id, lang, report=None, touched=set())
 
     @app.get("/api/doctor")
-    def get_doctor_view(person_id: str | None = None):
-        person_id = check_person(person_id)
+    def get_doctor_view(person_id: str | None = None, owner: str = Depends(current_owner)):
+        person_id = check_person(person_id, owner)
         return doctor_view(person_id, _call(services.load_readings, person_id))
 
     @app.post("/api/chat")
-    def post_chat(body: ChatRequest):
-        person_id = check_person(body.person_id)
+    def post_chat(body: ChatRequest, owner: str = Depends(current_owner)):
+        person_id = check_person(body.person_id, owner)
         lang = _check_lang(body.lang)
         question = (body.question or "").strip()
         if not question or len(question) > MAX_QUESTION_CHARS:
@@ -176,8 +237,9 @@ def create_app(
         file: UploadFile | None = File(None),
         report_date: str | None = Form(None),
         lang: str | None = Form(None),
+        owner: str = Depends(current_owner),
     ):
-        person_id = check_person(person_id)
+        person_id = check_person(person_id, owner)
         lang = _check_lang(lang)
         if report_date and not _is_iso_date(report_date):
             _fail(400, "Enter the report date as a calendar date.")

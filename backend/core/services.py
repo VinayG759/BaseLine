@@ -19,6 +19,7 @@ import boto3
 
 from core import openrouter, store
 from core.chat import answer
+from core.auth import Account, Session
 from core.extract import Extracted, extract
 from core.people import Person
 from core.phrase import phrase as bedrock_phrase
@@ -31,8 +32,13 @@ class Services:
     save_image: Callable[[str, str, bytes, str], str]              # person, report id, image, format -> key
     save_readings: Callable[[str, list[Reading], str, str], None]  # person, readings, report id, key
     load_readings: Callable[[str], list[Reading]]                  # person
-    list_people: Callable[[], list[Person]]
-    save_person: Callable[[Person], None]
+    list_people: Callable[[str], list[Person]]                     # owner email
+    save_person: Callable[[str, Person], None]                     # owner email, person
+    save_account: Callable[[Account], None]
+    load_account: Callable[[str], Account | None]                  # email
+    save_session: Callable[[Session], None]
+    load_session: Callable[[str], Session | None]                  # token hash
+    delete_session: Callable[[str], None]                          # token hash
     phrase: Callable[[dict[str, str], str], dict[str, str]] | None = None  # templates, lang -> sentences
     chat: Callable[[str, str, list[Reading]], str] | None = None            # question, lang, readings -> reply
 
@@ -92,11 +98,26 @@ def aws_services() -> Services:
     def load_readings(person_id):
         return store.load_readings(table(), person_id)
 
-    def list_people():
-        return store.load_people(table())
+    def list_people(owner):
+        return store.load_people(table(), owner)
 
-    def save_person(person):
-        store.save_person(table(), person)
+    def save_person(owner, person):
+        store.save_person(table(), owner, person)
+
+    def save_account(account):
+        store.save_account(table(), account)
+
+    def load_account(email):
+        return store.load_account(table(), email)
+
+    def save_session(session):
+        store.save_session(table(), session)
+
+    def load_session(token_hash):
+        return store.load_session(table(), token_hash)
+
+    def delete_session(token_hash):
+        store.delete_session(table(), token_hash)
 
     def phrase(templates, lang):
         if _provider() == "openrouter":
@@ -112,4 +133,4 @@ def aws_services() -> Services:
         return answer(question, lang, readings, model)
 
     return Services(read_report, save_image, save_readings, load_readings, list_people, save_person,
-                    phrase, chat)
+                    save_account, load_account, save_session, load_session, delete_session, phrase, chat)

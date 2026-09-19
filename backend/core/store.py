@@ -8,11 +8,19 @@ from decimal import Decimal
 
 from boto3.dynamodb.conditions import Key
 
+from core.auth import Account, Session
 from core.people import Person
 from core.trends import Reading
 
 CONTENT_TYPES = {"jpeg": "image/jpeg", "png": "image/png"}
-PEOPLE_PARTITION = "#people"   # "#" can't appear in a person ID, so this never collides with readings
+# Reserved partitions start with "#", which can't appear in a person ID, so they never collide with readings.
+ACCOUNTS_PARTITION = "#accounts"
+SESSIONS_PARTITION = "#sessions"
+
+
+def people_partition(owner: str) -> str:
+    """Each account's people live in their own partition, so accounts never see each other's."""
+    return f"#people#{owner}"
 
 
 def _to_decimal(x: float | None) -> Decimal | None:
@@ -75,14 +83,38 @@ def load_readings(table, person_id: str) -> list[Reading]:
     return [from_item(item) for item in _query_all(table, person_id)]
 
 
-def save_person(table, person: Person) -> None:
-    table.put_item(Item={"personId": PEOPLE_PARTITION, "sk": person.person_id,
+def save_person(table, owner: str, person: Person) -> None:
+    table.put_item(Item={"personId": people_partition(owner), "sk": person.person_id,
                          "title": person.title, "name": person.name, "is_self": person.is_self})
 
 
-def load_people(table) -> list[Person]:
+def load_people(table, owner: str) -> list[Person]:
     return [Person(item["sk"], item["title"], item["name"], item["is_self"])
-            for item in _query_all(table, PEOPLE_PARTITION)]
+            for item in _query_all(table, people_partition(owner))]
+
+
+def save_account(table, account: Account) -> None:
+    table.put_item(Item={"personId": ACCOUNTS_PARTITION, "sk": account.email,
+                         "password_hash": account.password_hash})
+
+
+def load_account(table, email: str) -> Account | None:
+    item = table.get_item(Key={"personId": ACCOUNTS_PARTITION, "sk": email}).get("Item")
+    return Account(item["sk"], item["password_hash"]) if item else None
+
+
+def save_session(table, session: Session) -> None:
+    table.put_item(Item={"personId": SESSIONS_PARTITION, "sk": session.token_hash,
+                         "email": session.email, "expires_at": session.expires_at})
+
+
+def load_session(table, token_hash: str) -> Session | None:
+    item = table.get_item(Key={"personId": SESSIONS_PARTITION, "sk": token_hash}).get("Item")
+    return Session(item["sk"], item["email"], item["expires_at"]) if item else None
+
+
+def delete_session(table, token_hash: str) -> None:
+    table.delete_item(Key={"personId": SESSIONS_PARTITION, "sk": token_hash})
 
 
 def save_image(s3, bucket: str, person_id: str, report_id: str, image: bytes, image_format: str) -> str:

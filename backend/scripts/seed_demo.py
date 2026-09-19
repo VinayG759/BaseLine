@@ -1,8 +1,10 @@
 """Seed the demo: Mrs Sunita Rao with her March and August reports, and Mr Ramesh Rao with none.
 
-Usage (from backend/, with AWS_REGION, BUCKET, TABLE and MODEL_ID set):
-    python scripts/seed_demo.py            # create or refresh the demo data
-    python scripts/seed_demo.py --reset    # also remove any later uploads for Mrs Sunita Rao
+Usage (from backend/, with AWS_REGION, BUCKET and TABLE set):
+    python scripts/seed_demo.py --email you@example.com            # seed into that account
+    python scripts/seed_demo.py --email you@example.com --reset    # also remove later uploads for Mrs Sunita Rao
+
+Register the account in the app first; the people are added to that account.
 
 Made-up people and made-up results (the sample-report table in docs/FRONTEND_PLAN.md).
 The September report is deliberately left out: it is the live upload in the demo.
@@ -36,17 +38,17 @@ READINGS = {
 PEOPLE = [("Mrs", "Sunita Rao"), ("Mr", "Ramesh Rao")]
 
 
-def _find_or_create(services, title, name):
-    for person in services.list_people():
+def _find_or_create(services, owner, title, name):
+    for person in services.list_people(owner):
         if person.title == title and person.name == name:
             return person
-    person = new_person(title, name, False, services.list_people())
-    services.save_person(person)
+    person = new_person(title, name, False, services.list_people(owner))
+    services.save_person(owner, person)
     return person
 
 
-def seed(services, reset: bool = False) -> None:
-    sunita, ramesh = (_find_or_create(services, title, name) for title, name in PEOPLE)
+def seed(services, owner: str, reset: bool = False) -> None:
+    sunita, ramesh = (_find_or_create(services, owner, title, name) for title, name in PEOPLE)
     if reset:
         _clear_readings(services, sunita.person_id)
     for day, readings in READINGS.items():
@@ -68,4 +70,12 @@ def _clear_readings(services, person_id: str) -> None:
 if __name__ == "__main__":
     from core.services import aws_services
 
-    seed(aws_services(), reset="--reset" in sys.argv[1:])
+    import argparse
+
+    from core.auth import normalise_email
+
+    parser = argparse.ArgumentParser(description="Seed the Baseline demo people into one account.")
+    parser.add_argument("--email", required=True, help="the account to seed into (register it in the app first)")
+    parser.add_argument("--reset", action="store_true", help="also remove later uploads for Mrs Sunita Rao")
+    args = parser.parse_args()
+    seed(aws_services(), normalise_email(args.email), reset=args.reset)

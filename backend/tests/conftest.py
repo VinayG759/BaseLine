@@ -31,3 +31,10 @@ def configured_aws(no_settings, monkeypatch):
             BillingMode="PAY_PER_REQUEST",
         )
         yield
+
+
+@pytest.fixture(autouse=True)
+def fast_password_hashing(monkeypatch):
+    """600,000 rounds is right for real passwords but slow for tests; the strength test checks the default."""
+    from core import auth
+    monkeypatch.setattr(auth, "ITERATIONS", 1_000)

@@ -21,6 +21,7 @@ from core.services import aws_services
 from core.trends import Reading
 
 TEST_ID = "zz-smoke-test-0000"
+TEST_OWNER = "smoke-test@baseline.invalid"
 
 
 def main() -> int:
@@ -33,11 +34,11 @@ def main() -> int:
     ok = True
     key = None
     try:
-        services.save_person(person)
+        services.save_person(TEST_OWNER, person)
         key = services.save_image(TEST_ID, "smoke", b"smoke-test-bytes", "jpeg")
         services.save_readings(TEST_ID, readings, "smoke", key)
 
-        found = [p for p in services.list_people() if p.person_id == TEST_ID]
+        found = [p for p in services.list_people(TEST_OWNER) if p.person_id == TEST_ID]
         loaded = sorted(services.load_readings(TEST_ID), key=lambda r: r.test_key)
         checks = {
             "profile saved and listed": found == [person],
@@ -56,13 +57,13 @@ def main() -> int:
 def cleanup(key, readings):
     region = os.environ["AWS_REGION"]
     table = boto3.resource("dynamodb", region_name=region).Table(os.environ["TABLE"])
-    table.delete_item(Key={"personId": store.PEOPLE_PARTITION, "sk": TEST_ID})
+    table.delete_item(Key={"personId": store.people_partition(TEST_OWNER), "sk": TEST_ID})
     for r in readings:
         table.delete_item(Key={"personId": TEST_ID, "sk": f"{r.test_key}#{r.taken_on}"})
     if key:
         boto3.client("s3", region_name=region).delete_object(Bucket=os.environ["BUCKET"], Key=key)
     readings_left = table.query(KeyConditionExpression=Key("personId").eq(TEST_ID))["Items"]
-    profile_left = table.get_item(Key={"personId": store.PEOPLE_PARTITION, "sk": TEST_ID}).get("Item")
+    profile_left = table.get_item(Key={"personId": store.people_partition(TEST_OWNER), "sk": TEST_ID}).get("Item")
     print(f"cleanup: {'done' if not readings_left and not profile_left else 'ITEMS LEFT BEHIND'}")
 
 
