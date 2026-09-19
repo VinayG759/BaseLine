@@ -1,13 +1,16 @@
-"""Storage format for readings.
+"""Where readings and report images live: DynamoDB and S3.
 
 DynamoDB refuses Python floats, and Decimal(6.4) straight from a float stores
 6.4000000000000003552... So numbers go in as Decimal built from their text,
-and come back out as floats. The functions that talk to DynamoDB itself are
-added once AWS access works.
+and come back out as floats.
 """
 from decimal import Decimal
 
+from boto3.dynamodb.conditions import Key
+
 from core.trends import Reading
+
+CONTENT_TYPES = {"jpeg": "image/jpeg", "png": "image/png"}
 
 
 def _to_decimal(x: float | None) -> Decimal | None:
@@ -45,3 +48,29 @@ def from_item(item: dict) -> Reading:
         ref_high=_to_float(item.get("ref_high")),
         taken_on=item["taken_on"],
     )
+
+
+def save_readings(table, person_id: str, readings: list[Reading], report_id: str, s3_key: str) -> None:
+    """`table` is a boto3 DynamoDB Table."""
+    with table.batch_writer(overwrite_by_pkeys=["personId", "sk"]) as batch:
+        for r in readings:
+            batch.put_item(Item=to_item(person_id, r, report_id, s3_key))
+
+
+def load_readings(table, person_id: str) -> list[Reading]:
+    """Every reading for one person. DynamoDB answers in pages, so keep asking until it's done."""
+    query = {"KeyConditionExpression": Key("personId").eq(person_id)}
+    readings = []
+    while True:
+        page = table.query(**query)
+        readings += [from_item(item) for item in page["Items"]]
+        if "LastEvaluatedKey" not in page:
+            return readings
+        query["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+
+def save_image(s3, bucket: str, person_id: str, report_id: str, image: bytes, image_format: str) -> str:
+    """Keep the original photo, so every extracted number can be checked against its source."""
+    key = f"{person_id}/{report_id}.{image_format}"
+    s3.put_object(Bucket=bucket, Key=key, Body=image, ContentType=CONTENT_TYPES[image_format])
+    return key
