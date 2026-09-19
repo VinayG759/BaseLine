@@ -25,16 +25,25 @@ Rules for every sentence:
   discussing with a doctor."""
 
 
-def phrase(templates: dict[str, str], lang: str, model_id: str, client) -> dict[str, str]:
-    """`client` is a boto3 bedrock-runtime client. Raises ValueError if the reply isn't usable JSON."""
-    request = {"language": LANGUAGE_NAMES[lang], "facts": templates}
-    response = client.converse(
-        modelId=model_id,
-        system=[{"text": PROMPT}],
-        messages=[{"role": "user", "content": [{"text": json.dumps(request, ensure_ascii=False)}]}],
-        inferenceConfig={"temperature": 0, "maxTokens": 2000},
-    )
-    reply = json.loads(strip_fence(response["output"]["message"]["content"][0]["text"]))
+def build_request(templates: dict[str, str], lang: str) -> str:
+    """The user message, shared by every model provider."""
+    return json.dumps({"language": LANGUAGE_NAMES[lang], "facts": templates}, ensure_ascii=False)
+
+
+def parse_reply(text: str) -> dict[str, str]:
+    """test_key -> sentence. Raises ValueError if the reply isn't a JSON object."""
+    reply = json.loads(strip_fence(text or ""))
     if not isinstance(reply, dict):
         raise ValueError("model reply was not a JSON object")
     return {k: v for k, v in reply.items() if isinstance(v, str)}
+
+
+def phrase(templates: dict[str, str], lang: str, model_id: str, client) -> dict[str, str]:
+    """`client` is a boto3 bedrock-runtime client."""
+    response = client.converse(
+        modelId=model_id,
+        system=[{"text": PROMPT}],
+        messages=[{"role": "user", "content": [{"text": build_request(templates, lang)}]}],
+        inferenceConfig={"temperature": 0, "maxTokens": 2000},
+    )
+    return parse_reply(response["output"]["message"]["content"][0]["text"])

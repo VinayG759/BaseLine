@@ -1,8 +1,14 @@
 """The four things the API needs done, and the AWS implementation of each.
 
 The API only ever calls a Services object, so tests can plug in fakes and the
-real one below can plug in Bedrock, S3 and DynamoDB, configured by four
-environment variables: AWS_REGION, MODEL_ID, BUCKET, TABLE.
+real one below plugs in S3 and DynamoDB, plus a model provider for the three
+AI slots (read_report, phrase, chat). Settings (environment variables):
+
+    AWS_REGION, BUCKET, TABLE      always
+    MODEL_PROVIDER                 "bedrock" (default) or "openrouter"
+    MODEL_ID                       with bedrock
+    OPENROUTER_API_KEY             with openrouter
+    OPENROUTER_MODEL               optional, default google/gemini-3.8-flash
 """
 import os
 from dataclasses import dataclass
@@ -11,7 +17,7 @@ from typing import Callable
 
 import boto3
 
-from core import store
+from core import openrouter, store
 from core.chat import answer
 from core.extract import Extracted, extract
 from core.people import Person
@@ -38,6 +44,21 @@ def _setting(name: str) -> str:
     return value
 
 
+PROVIDERS = ("bedrock", "openrouter")
+DEFAULT_OPENROUTER_MODEL = "google/gemini-3.8-flash"
+
+
+def _provider() -> str:
+    provider = os.environ.get("MODEL_PROVIDER") or "bedrock"
+    if provider not in PROVIDERS:
+        raise RuntimeError(f"Set MODEL_PROVIDER to one of: {', '.join(PROVIDERS)}.")
+    return provider
+
+
+def _openrouter_model() -> str:
+    return os.environ.get("OPENROUTER_MODEL") or DEFAULT_OPENROUTER_MODEL
+
+
 def aws_services() -> Services:
     """AWS clients are created on first use, so the app starts even when a setting is missing."""
 
@@ -53,7 +74,13 @@ def aws_services() -> Services:
     def table():
         return boto3.resource("dynamodb", region_name=_setting("AWS_REGION")).Table(_setting("TABLE"))
 
+    @cache
+    def openrouter_client():
+        return openrouter.make_client(_setting("OPENROUTER_API_KEY"))
+
     def read_report(image, image_format):
+        if _provider() == "openrouter":
+            return openrouter.read_report(image, image_format, _openrouter_model(), openrouter_client())
         return extract(image, image_format, _setting("MODEL_ID"), bedrock())
 
     def save_image(person_id, report_id, image, image_format):
@@ -72,11 +99,16 @@ def aws_services() -> Services:
         store.save_person(table(), person)
 
     def phrase(templates, lang):
+        if _provider() == "openrouter":
+            return openrouter.phrase(templates, lang, _openrouter_model(), openrouter_client())
         return bedrock_phrase(templates, lang, _setting("MODEL_ID"), bedrock())
 
     def chat(question, lang, readings):
-        from strands.models.bedrock import BedrockModel   # imported here: only chat needs it
-        model = BedrockModel(model_id=_setting("MODEL_ID"), region_name=_setting("AWS_REGION"), temperature=0)
+        if _provider() == "openrouter":
+            model = openrouter.chat_model(_setting("OPENROUTER_API_KEY"), _openrouter_model())
+        else:
+            from strands.models.bedrock import BedrockModel   # imported here: only chat needs it
+            model = BedrockModel(model_id=_setting("MODEL_ID"), region_name=_setting("AWS_REGION"), temperature=0)
         return answer(question, lang, readings, model)
 
     return Services(read_report, save_image, save_readings, load_readings, list_people, save_person,

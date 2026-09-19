@@ -60,3 +60,53 @@ def test_people_are_saved_and_listed_through_dynamodb(configured_aws):
     services.save_person(sunita)
 
     assert services.list_people() == [sunita]
+
+
+# ---- Choosing the model provider ----
+
+def test_openrouter_provider_reads_reports_through_openrouter(no_settings, monkeypatch):
+    import json
+
+    from core import openrouter
+    from tests.test_openrouter import REPLY, FakeClient
+
+    fake = FakeClient(json.dumps(REPLY))
+    monkeypatch.setenv("MODEL_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+    monkeypatch.setattr(openrouter, "make_client", lambda key: fake)
+
+    result = aws_services().read_report(b"photo", "jpeg")
+
+    assert result.readings[0].test_key == "hba1c"
+    assert fake.requests[0]["model"] == "google/gemini-3.8-flash"
+
+
+def test_openrouter_model_can_be_changed_by_setting(no_settings, monkeypatch):
+    import json
+
+    from core import openrouter
+    from tests.test_openrouter import FakeClient
+
+    fake = FakeClient(json.dumps({"hba1c": "ok"}))
+    monkeypatch.setenv("MODEL_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
+    monkeypatch.setenv("OPENROUTER_MODEL", "google/gemini-3.5-flash-lite")
+    monkeypatch.setattr(openrouter, "make_client", lambda key: fake)
+
+    aws_services().phrase({"hba1c": "x"}, "kn")
+
+    assert fake.requests[0]["model"] == "google/gemini-3.5-flash-lite"
+
+
+def test_openrouter_without_a_key_names_the_missing_setting(no_settings, monkeypatch):
+    monkeypatch.setenv("MODEL_PROVIDER", "openrouter")
+
+    with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
+        aws_services().read_report(b"photo", "jpeg")
+
+
+def test_an_unknown_provider_is_named_in_the_error(no_settings, monkeypatch):
+    monkeypatch.setenv("MODEL_PROVIDER", "openai")
+
+    with pytest.raises(RuntimeError, match="MODEL_PROVIDER"):
+        aws_services().read_report(b"photo", "jpeg")
