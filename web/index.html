@@ -151,7 +151,7 @@
           <option value="kn">ಕನ್ನಡ</option>
           <option value="hi">हिन्दी</option>
         </select>
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode" data-i18n-aria="common.theme">🌙</button>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode" data-i18n-aria="common.theme"></button>
       </div>
     </header>
 
@@ -178,17 +178,17 @@
         <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;" data-i18n="landing.how">How It Works</h2>
         <div class="steps-grid">
           <div class="card step-card">
-            <span class="step-icon">📸</span>
+            <span class="step-icon" data-icon="camera"></span>
             <h3 class="step-title" data-i18n="landing.step1">1. Photograph</h3>
             <p class="step-desc" data-i18n="landing.step1Text">Snap a photo of your printed lab test report with your camera.</p>
           </div>
           <div class="card step-card">
-            <span class="step-icon">🧠</span>
+            <span class="step-icon" data-icon="sparkles"></span>
             <h3 class="step-title" data-i18n="landing.step2">2. Remembers</h3>
             <p class="step-desc" data-i18n="landing.step2Text">Reads every number and connects it to your earlier reports.</p>
           </div>
           <div class="card step-card">
-            <span class="step-icon">📈</span>
+            <span class="step-icon" data-icon="trending-up"></span>
             <h3 class="step-title" data-i18n="landing.step3">3. Notices</h3>
             <p class="step-desc" data-i18n="landing.step3Text">Charts each result against its normal range and points out numbers that keep rising.</p>
           </div>
@@ -200,22 +200,22 @@
         <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;" data-i18n="landing.features">Built for Families &amp; Doctors</h2>
         <div class="features-grid">
           <div class="feature-chip">
-            <span class="feature-icon">🌐</span>
+            <span class="feature-icon" data-icon="globe"></span>
             <span class="feature-title">English / ಕನ್ನಡ / हिन्दी</span>
             <span class="feature-desc" data-i18n="landing.f1Text">Summaries in your mother tongue</span>
           </div>
           <div class="feature-chip">
-            <span class="feature-icon">🩺</span>
+            <span class="feature-icon" data-icon="stethoscope"></span>
             <span class="feature-title" data-i18n="landing.f2">Doctor View</span>
             <span class="feature-desc" data-i18n="landing.f2Text">Clinical tables ready for consultation</span>
           </div>
           <div class="feature-chip">
-            <span class="feature-icon">💬</span>
+            <span class="feature-icon" data-icon="message"></span>
             <span class="feature-title" data-i18n="landing.f3">Ask Questions</span>
             <span class="feature-desc" data-i18n="landing.f3Text">Clear answers straight from your reports</span>
           </div>
           <div class="feature-chip">
-            <span class="feature-icon">🗓️</span>
+            <span class="feature-icon" data-icon="calendar"></span>
             <span class="feature-title" data-i18n="landing.f4">Next-Test Reminders</span>
             <span class="feature-desc" data-i18n="landing.f4Text">Gentle reminders when the next test is due</span>
           </div>
@@ -231,6 +231,7 @@
   </footer>
 
   <script src="i18n.js"></script>
+  <script src="icons.js"></script>
   <script src="mascot.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => Mascot.decorate(document.querySelector(".landing-mascot"), "wave"));
@@ -242,7 +243,8 @@
       const themeBtn = document.getElementById("theme-toggle");
       const currentTheme = localStorage.getItem("baseline_theme") || "light";
       document.documentElement.setAttribute("data-theme", currentTheme);
-      if (themeBtn) themeBtn.textContent = currentTheme === "dark" ? "☀️" : "🌙";
+      const drawIcon = (theme) => { if (themeBtn) themeBtn.innerHTML = Icons.svg(theme === "dark" ? "sun" : "moon"); };
+      drawIcon(currentTheme);
 
       if (themeBtn) {
         themeBtn.addEventListener("click", () => {
@@ -252,7 +254,7 @@
           try {
             localStorage.setItem("baseline_theme", next);
           } catch (e) {}
-          themeBtn.textContent = next === "dark" ? "☀️" : "🌙";
+          drawIcon(next);
         });
       }
 

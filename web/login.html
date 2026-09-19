@@ -55,7 +55,7 @@
           <label for="auth-password" class="auth-label" data-i18n="login.password">Password</label>
           <div class="password-field">
             <input type="password" id="auth-password" class="date-input auth-input" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters" data-i18n-placeholder="login.passwordPh">
-            <button type="button" class="reveal-btn" data-target="auth-password" aria-label="Show password" data-i18n-aria="login.show" aria-pressed="false">👁</button>
+            <button type="button" class="reveal-btn" data-target="auth-password" aria-label="Show password" data-i18n-aria="login.show" aria-pressed="false" data-icon="eye"></button>
           </div>
         </div>
 
@@ -63,7 +63,7 @@
           <label for="auth-confirm" class="auth-label" data-i18n="login.confirm">Confirm password</label>
           <div class="password-field">
             <input type="password" id="auth-confirm" class="date-input auth-input" autocomplete="new-password" maxlength="128" placeholder="Type it again" data-i18n-placeholder="login.confirmPh">
-            <button type="button" class="reveal-btn" data-target="auth-confirm" aria-label="Show password" data-i18n-aria="login.show" aria-pressed="false">👁</button>
+            <button type="button" class="reveal-btn" data-target="auth-confirm" aria-label="Show password" data-i18n-aria="login.show" aria-pressed="false" data-icon="eye"></button>
           </div>
         </div>
 
@@ -78,6 +78,7 @@
   </main>
 
   <script src="i18n.js"></script>
+  <script src="icons.js"></script>
   <script src="config.js"></script>
   <script src="mock.js"></script>
   <script src="api.js"></script>
@@ -129,7 +130,7 @@
           input.type = show ? "text" : "password";
           btn.setAttribute("aria-pressed", String(show));
           btn.setAttribute("aria-label", t(show ? "login.hide" : "login.show"));
-          btn.textContent = show ? "🙈" : "👁";
+          btn.innerHTML = Icons.svg(show ? "eye-off" : "eye");
         });
       });
 

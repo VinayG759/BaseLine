@@ -6,7 +6,6 @@
   <title>Baseline - A Health Record That Notices</title>
   <meta name="description" content="Baseline tracks family lab results over time, highlighting trends and out-of-range values.">
 
-  <!-- Google Fonts: Nunito, IBM Plex Mono, Noto Sans Kannada, Noto Sans Devanagari -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -14,52 +13,76 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d9488">
+  <script>
+    try { document.documentElement.setAttribute("data-theme", localStorage.getItem("baseline_theme") || "light"); } catch (e) {}
+  </script>
 </head>
 <body>
-  <div class="app-container">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-left">
-        <a href="index.html" class="brand-logo" id="brand-link" aria-label="Baseline Home" data-i18n-aria="common.home">
-          <span>Baseline</span>
-          <span class="brand-badge" data-i18n="app.demo">Demo</span>
-        </a>
+  <!-- ===== Top bar: menu, brand, profile ===== -->
+  <header class="topbar">
+    <button type="button" id="menu-btn" class="icon-btn" aria-label="Open menu" data-i18n-aria="menu.open" aria-expanded="false" aria-controls="menu-drawer">
+      <span data-icon="menu"></span>
+    </button>
+    <a href="index.html" class="brand-logo topbar-brand" aria-label="Baseline Home" data-i18n-aria="common.home">Baseline</a>
+    <div class="profile-wrap">
+      <button type="button" id="profile-btn" class="avatar-btn" aria-label="Your account" data-i18n-aria="profile.open" aria-expanded="false" aria-controls="profile-menu">
+        <span id="avatar-initials" aria-hidden="true"></span>
+      </button>
+      <div id="profile-menu" class="profile-menu" hidden>
+        <p class="profile-name" id="profile-name"></p>
+        <p class="profile-email" id="profile-email"></p>
+        <button type="button" id="profile-edit-btn" class="menu-item"><span data-icon="user"></span><span id="profile-edit-label" data-i18n="profile.edit">Edit my profile</span></button>
+        <button type="button" id="logout-btn" class="menu-item"><span data-icon="log-out"></span><span data-i18n="app.logout">Log out</span></button>
       </div>
-      <div class="header-actions">
-        <button id="doctor-view-btn" class="btn btn-secondary btn-sm" aria-label="Open Doctor View" data-i18n-aria="app.doctorViewAria" data-i18n="app.doctorView">🩺 Doctor view</button>
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode" data-i18n-aria="common.theme">🌙</button>
-      </div>
-    </header>
-
-    <div class="account-bar">
-      <span id="account-signed-in"></span>
-      <button type="button" id="logout-btn" class="link-btn" data-i18n="app.logout">Log out</button>
     </div>
+  </header>
 
-    <!-- Screen B: People and Language Selector -->
-    <section class="card people-bar" aria-label="Family Member and Language Controls" data-i18n-aria="app.peopleAria">
-      <div class="people-controls">
-        <div class="select-wrapper">
-          <label for="person-select" class="visually-hidden" style="display:none;">Select Person</label>
-          <select id="person-select" class="app-select" aria-label="Select Family Member" data-i18n-aria="app.selectPerson">
-            <option value="" data-i18n="app.loadingProfiles">Loading profiles...</option>
-          </select>
-        </div>
+  <!-- ===== Slide-out menu ===== -->
+  <div id="menu-backdrop" class="drawer-backdrop" hidden></div>
+  <nav id="menu-drawer" class="drawer" aria-label="Menu" data-i18n-aria="menu.title" hidden>
+    <div class="drawer-head">
+      <span class="drawer-title" data-i18n="menu.title">Menu</span>
+      <button type="button" id="menu-close-btn" class="icon-btn" aria-label="Close menu" data-i18n-aria="menu.close"><span data-icon="x"></span></button>
+    </div>
+    <label class="drawer-row" for="lang-select">
+      <span data-icon="globe"></span>
+      <span data-i18n="common.language">Language</span>
+      <select id="lang-select" class="app-select drawer-select" aria-label="Language" data-i18n-aria="common.language">
+        <option value="en">English</option>
+        <option value="kn">ಕನ್ನಡ</option>
+        <option value="hi">हिन्दी</option>
+      </select>
+    </label>
+    <label class="drawer-row" for="theme-switch">
+      <span data-icon="moon"></span>
+      <span data-i18n="menu.theme">Dark mode</span>
+      <input type="checkbox" id="theme-switch" class="switch" role="switch">
+    </label>
+    <button type="button" id="menu-doctor-btn" class="drawer-row drawer-button" hidden>
+      <span data-icon="stethoscope"></span>
+      <span data-i18n="menu.doctorView">Doctor view</span>
+    </button>
+    <a href="index.html" class="drawer-row drawer-button">
+      <span data-icon="info"></span>
+      <span data-i18n="menu.about">About Baseline</span>
+    </a>
+    <p class="drawer-foot" data-i18n="common.madeFor">Made for the AWS student hackathon</p>
+  </nav>
 
-        <button id="open-add-person-btn" class="btn btn-secondary btn-sm" aria-label="Add a new family member" data-i18n-aria="app.addPersonAria" data-i18n="app.addPerson">+ Add person</button>
-
-        <div class="select-wrapper lang-select-wrapper">
-          <label for="lang-select" class="visually-hidden" style="display:none;">Select Language</label>
-          <select id="lang-select" class="app-select" aria-label="Select Language" data-i18n-aria="common.language">
-            <option value="en">English</option>
-            <option value="kn">ಕನ್ನಡ</option>
-            <option value="hi">हिन्दी</option>
-          </select>
-        </div>
+  <main class="app-container">
+    <!-- ===== Whose results ===== -->
+    <section class="person-bar" aria-label="Whose results" data-i18n-aria="person.switch">
+      <div class="person-select-wrap">
+        <select id="person-select" class="app-select person-select" aria-label="Whose results" data-i18n-aria="person.switch">
+          <option value="" data-i18n="app.loadingProfiles">Loading profiles...</option>
+        </select>
+        <p id="person-meta" class="person-meta"></p>
       </div>
+      <button type="button" id="edit-person-btn" class="icon-btn" aria-label="Edit this person" data-i18n-aria="person.edit" hidden><span data-icon="pencil"></span></button>
+      <button type="button" id="add-person-btn" class="icon-btn icon-btn-accent" aria-label="Add a person" data-i18n-aria="person.add"><span data-icon="user-plus"></span></button>
     </section>
 
-    <!-- Doctor Mascot & Dynamic Speech Bubble -->
+    <!-- ===== Dr. Bindu ===== -->
     <section id="mascot-container" class="mascot-section" aria-label="Doctor Mascot Assistant" data-i18n-aria="app.mascotAria">
       <div class="mascot-avatar-wrapper">
         <img class="mascot-avatar" src="mascot/wave.svg" alt="Cartoon doctor mascot" data-i18n-alt="common.mascotAlt">
@@ -67,180 +90,173 @@
       <div class="mascot-bubble" role="status" aria-live="polite">Hello! Loading your health records...</div>
     </section>
 
-    <!-- Screen C: Reminder & Winding History Path -->
-    <section id="reminder-path-section" aria-label="History Path and Next Test Reminder" data-i18n-aria="app.pathAria" style="display: none;">
-      <!-- Populated dynamically by app.js -->
+    <!-- ===== Tabs ===== -->
+    <div class="tabs" role="tablist" aria-label="Sections" data-i18n-aria="tabs.aria">
+      <button type="button" role="tab" id="tab-results" class="tab active" aria-selected="true" aria-controls="panel-results"><span data-icon="activity"></span><span data-i18n="tabs.results">Results</span></button>
+      <button type="button" role="tab" id="tab-history" class="tab" aria-selected="false" aria-controls="panel-history"><span data-icon="history"></span><span data-i18n="tabs.history">History</span></button>
+      <button type="button" role="tab" id="tab-ask" class="tab" aria-selected="false" aria-controls="panel-ask"><span data-icon="message"></span><span data-i18n="tabs.ask">Ask</span></button>
+    </div>
+
+    <!-- ===== Results ===== -->
+    <section id="panel-results" class="tab-panel" role="tabpanel" aria-labelledby="tab-results">
+      <div class="card upload-card" aria-label="Upload New Lab Report" data-i18n-aria="upload.aria">
+        <h2 class="card-title" data-i18n="upload.title">Add a Report</h2>
+        <p class="card-hint" data-i18n="upload.hint">Take a clear, flat photo of the whole report.</p>
+        <div class="upload-actions-grid">
+          <button type="button" id="take-photo-btn" class="btn btn-primary"><span data-icon="camera"></span><span data-i18n="upload.take">Take photo</span></button>
+          <button type="button" id="choose-gallery-btn" class="btn btn-secondary"><span data-icon="image"></span><span data-i18n="upload.gallery">From gallery</span></button>
+        </div>
+        <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+        <input type="file" id="gallery-input" accept="image/*" hidden>
+        <div id="photo-preview-container" class="photo-preview-box" hidden>
+          <img id="photo-preview" src="" alt="Selected lab report preview" data-i18n-alt="upload.previewAlt">
+        </div>
+        <details class="collapsible-details">
+          <summary data-i18n="upload.dateToggle">Date not printed clearly?</summary>
+          <div class="collapsible-content">
+            <label for="custom-report-date" class="field-label" data-i18n="upload.dateLabel">Report Date (Optional)</label>
+            <input type="date" id="custom-report-date" class="date-input">
+          </div>
+        </details>
+        <button type="button" id="read-report-btn" class="btn btn-primary btn-block" disabled><span data-i18n="upload.read">Read report</span></button>
+        <div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
+      </div>
+
+      <div id="latest-summary" class="card summary-card" hidden></div>
+      <div id="reminder-path-section" hidden></div>
+      <div id="trends-container" class="trends-list" aria-label="Lab Test Trends" data-i18n-aria="trends.aria"></div>
     </section>
 
-    <!-- Screen D: Add a Report -->
-    <section id="upload-section" class="card upload-card" aria-label="Upload New Lab Report" data-i18n-aria="upload.aria">
-      <h2 style="font-size: 1.15rem; font-weight: 800;" data-i18n="upload.title">Add a Report</h2>
-      
-      <div class="upload-actions-grid">
-        <button type="button" id="take-photo-btn" class="btn btn-primary" data-i18n="upload.take">📷 Take photo</button>
-        <button type="button" id="choose-gallery-btn" class="btn btn-secondary" data-i18n="upload.gallery">🖼️ From gallery</button>
-      </div>
-
-      <!-- Hidden file inputs -->
-      <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;" aria-hidden="true">
-      <input type="file" id="gallery-input" accept="image/*" style="display: none;" aria-hidden="true">
-
-      <!-- Photo Preview Box -->
-      <div id="photo-preview-container" class="photo-preview-box" style="display: none;">
-        <img id="photo-preview" src="" alt="Selected lab report preview" data-i18n-alt="upload.previewAlt">
-      </div>
-
-      <!-- Collapsible Date Option -->
-      <details class="collapsible-details">
-        <summary data-i18n="upload.dateToggle">Date not printed clearly?</summary>
-        <div class="collapsible-content">
-          <label for="custom-report-date" style="font-weight: 600; font-size: 0.85rem;" data-i18n="upload.dateLabel">Report Date (Optional)</label>
-          <input type="date" id="custom-report-date" class="date-input">
-        </div>
-      </details>
-
-      <button type="button" id="read-report-btn" class="btn btn-primary" disabled style="width: 100%;" data-i18n="upload.read">Read report</button>
-
-      <!-- Status indicator with role="status" and aria-live="polite" -->
-      <div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
+    <!-- ===== History ===== -->
+    <section id="panel-history" class="tab-panel" role="tabpanel" aria-labelledby="tab-history" hidden>
+      <ul id="history-list" class="history-list"></ul>
     </section>
 
-    <!-- Screen E: Trend Cards -->
-    <section id="trends-section" aria-label="Lab Test Trends" data-i18n-aria="trends.aria">
-      <div id="trends-container" class="trends-list">
-        <!-- Populated dynamically by app.js -->
+    <!-- ===== Ask ===== -->
+    <section id="panel-ask" class="tab-panel" role="tabpanel" aria-labelledby="tab-ask" hidden>
+      <div class="card chat-card" aria-label="Ask questions about lab results" data-i18n-aria="chat.aria">
+        <h2 class="card-title" data-i18n="chat.title">Ask about these results</h2>
+        <div class="chat-chips-container" role="group" aria-label="Quick questions" data-i18n-aria="chat.quickAria">
+          <button type="button" class="chip-btn" data-i18n="chat.q1">Is anything getting worse?</button>
+          <button type="button" class="chip-btn" data-i18n="chat.q2">What should I ask the doctor?</button>
+          <button type="button" class="chip-btn" data-i18n="chat.q3">Explain HbA1c simply.</button>
+        </div>
+        <div id="chat-messages" class="chat-messages" role="log" aria-live="polite">
+          <div class="chat-bubble mascot-reply-bubble" data-i18n="chat.welcome">Ask me any question about these lab tests.</div>
+        </div>
+        <form id="chat-form" class="chat-input-form">
+          <div class="chat-input-row">
+            <label for="chat-input" class="sr-only" data-i18n="chat.label">Type a question</label>
+            <input type="text" id="chat-input" class="chat-text-input" maxlength="500" placeholder="Ask about your numbers..." data-i18n-placeholder="chat.placeholder" autocomplete="off" required>
+            <button type="submit" id="chat-send-btn" class="btn btn-primary btn-sm" aria-label="Send" data-i18n-aria="chat.send"><span data-icon="send"></span></button>
+          </div>
+          <div class="chat-meta-row">
+            <span data-i18n="chat.note">Answers come only from these reports. Baseline doesn't diagnose.</span>
+            <span id="chat-char-counter">0/500</span>
+          </div>
+        </form>
       </div>
     </section>
+  </main>
 
-    <!-- Screen G: Chat Panel ("Ask about these results") -->
-    <section id="chat-section" class="card chat-card" aria-label="Ask questions about lab results" data-i18n-aria="chat.aria">
-      <h2 class="chat-header-title" data-i18n="chat.title">Ask about these results</h2>
+  <footer class="app-footer" role="contentinfo">
+    <p class="footer-disclaimer" data-i18n="common.boundary">Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.</p>
+  </footer>
 
-      <!-- Suggested Tap-to-Send Chips -->
-      <div class="chat-chips-container" role="group" aria-label="Quick questions" data-i18n-aria="chat.quickAria">
-        <button type="button" class="chip-btn" data-i18n="chat.q1">Is anything getting worse?</button>
-        <button type="button" class="chip-btn" data-i18n="chat.q2">What should I ask the doctor?</button>
-        <button type="button" class="chip-btn" data-i18n="chat.q3">Explain HbA1c simply.</button>
-      </div>
-
-      <!-- Chat Bubble History -->
-      <div id="chat-messages" class="chat-messages" role="log" aria-live="polite">
-        <div class="chat-bubble mascot-reply-bubble" data-i18n="chat.welcome">Ask me any question about these lab tests.</div>
-      </div>
-
-      <!-- Chat Input Form -->
-      <form id="chat-form" class="chat-input-form">
-        <div class="chat-input-row">
-          <label for="chat-input" class="visually-hidden" style="display:none;" data-i18n="chat.label">Type a question</label>
-          <input type="text" id="chat-input" class="chat-text-input" maxlength="500" placeholder="Ask about your numbers..." data-i18n-placeholder="chat.placeholder" aria-label="Type your health question" data-i18n-aria="chat.inputAria" required autocomplete="off">
-          <button type="submit" id="chat-send-btn" class="btn btn-primary btn-sm" data-i18n="chat.send">Send</button>
+  <!-- ===== Person form (setup, add, edit) ===== -->
+  <div id="person-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="person-modal-title" hidden>
+    <div class="modal-sheet modal-narrow">
+      <h2 id="person-modal-title" class="modal-title"></h2>
+      <p id="person-modal-intro" class="modal-intro" hidden></p>
+      <form id="person-form" class="form-stack" novalidate>
+        <div class="form-row">
+          <div class="field field-small">
+            <label for="pf-title" class="field-label" data-i18n="person.title">Title</label>
+            <select id="pf-title" class="app-select">
+              <option value="" data-i18n="person.none">(None)</option>
+              <option value="Mr">Mr</option><option value="Ms">Ms</option><option value="Mrs">Mrs</option>
+              <option value="Miss">Miss</option><option value="Dr">Dr</option><option value="Mx">Mx</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pf-name" class="field-label" data-i18n="person.name">Full Name</label>
+            <input type="text" id="pf-name" class="date-input" maxlength="40" required placeholder="e.g. Sunita Rao" data-i18n-placeholder="person.namePh" autocomplete="name">
+          </div>
         </div>
-        <div class="chat-meta-row">
-          <span data-i18n="chat.note">Answers come only from these reports. Baseline doesn't diagnose.</span>
-          <span id="chat-char-counter">0/500</span>
+        <div class="form-row">
+          <div class="field">
+            <label for="pf-gender" class="field-label" data-i18n="gender.label">Gender</label>
+            <select id="pf-gender" class="app-select" required>
+              <option value="" data-i18n="gender.choose">Choose</option>
+              <option value="female" data-i18n="gender.female">Female</option>
+              <option value="male" data-i18n="gender.male">Male</option>
+              <option value="other" data-i18n="gender.other">Other</option>
+            </select>
+          </div>
+          <div class="field field-small">
+            <label for="pf-age" class="field-label" data-i18n="person.age">Age (years)</label>
+            <input type="number" id="pf-age" class="date-input" min="0" max="120" step="1" inputmode="numeric" required>
+          </div>
         </div>
-      </form>
-    </section>
-  </div>
-
-  <!-- Screen B Modal: Add Person Dialog -->
-  <div id="add-person-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="add-person-title">
-    <div class="modal-sheet" style="max-width: 400px;">
-      <h2 id="add-person-title" style="font-size: 1.2rem; font-weight: 800;" data-i18n="person.modalTitle">Add Family Member</h2>
-      <form id="add-person-form" style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
-        <div>
-          <label for="new-person-title" style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;" data-i18n="person.title">Title</label>
-          <select id="new-person-title" class="app-select">
-            <option value="" data-i18n="person.none">(None)</option>
-            <option value="Mr">Mr</option>
-            <option value="Ms">Ms</option>
-            <option value="Mrs">Mrs</option>
-            <option value="Miss">Miss</option>
-            <option value="Dr">Dr</option>
-            <option value="Mx">Mx</option>
-          </select>
+        <div class="form-row">
+          <div class="field">
+            <label for="pf-height" class="field-label" data-i18n="person.height">Height in cm (optional)</label>
+            <input type="number" id="pf-height" class="date-input" min="30" max="250" step="0.1" inputmode="decimal">
+          </div>
+          <div class="field">
+            <label for="pf-weight" class="field-label" data-i18n="person.weight">Weight in kg (optional)</label>
+            <input type="number" id="pf-weight" class="date-input" min="1" max="350" step="0.1" inputmode="decimal">
+          </div>
         </div>
-
-        <div>
-          <label for="new-person-name" style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;" data-i18n="person.name">Full Name</label>
-          <input type="text" id="new-person-name" class="date-input" style="width: 100%;" required maxlength="40" placeholder="e.g. Sunita Rao" data-i18n-placeholder="person.namePh">
-        </div>
-
-        <div id="self-checkbox-container" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-          <input type="checkbox" id="new-person-self" style="width: 20px; height: 20px; accent-color: var(--accent);">
-          <label for="new-person-self" style="font-weight: 700; font-size: 0.9rem; cursor: pointer;" data-i18n="person.isMe">This is me</label>
-        </div>
-
-        <div id="add-person-error" style="color: var(--danger); font-size: 0.85rem; font-weight: 700; min-height: 18px;" role="alert"></div>
-
-        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
-          <button type="button" id="close-add-person-btn" class="btn btn-secondary btn-sm" data-i18n="person.cancel">Cancel</button>
-          <button type="submit" class="btn btn-primary btn-sm" data-i18n="person.save">Save Person</button>
+        <label id="pf-self-row" class="check-row"><input type="checkbox" id="pf-self"><span data-i18n="person.isMe">This is me</span></label>
+        <div id="person-form-error" class="form-error" role="alert"></div>
+        <div class="modal-actions">
+          <button type="button" id="person-cancel-btn" class="btn btn-secondary btn-sm"></button>
+          <button type="submit" id="person-save-btn" class="btn btn-primary btn-sm"></button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Screen F Modal: Doctor View Clinical Panel -->
-  <div id="doctor-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Clinical Doctor View">
-    <div id="doctor-modal-content" class="modal-sheet">
-      <!-- Populated dynamically by app.js -->
+  <!-- ===== Review before saving ===== -->
+  <div id="review-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="review-title" hidden>
+    <div class="modal-sheet">
+      <div id="review-content"></div>
     </div>
   </div>
 
-  <!-- Habit Celebration Overlay (Part 6) -->
+  <!-- ===== One saved report ===== -->
+  <div id="report-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="report-title" hidden>
+    <div class="modal-sheet">
+      <div id="report-content"></div>
+    </div>
+  </div>
+
+  <!-- ===== Doctor view (clinical English) ===== -->
+  <div id="doctor-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Clinical Doctor View" hidden>
+    <div id="doctor-modal-content" class="modal-sheet"></div>
+  </div>
+
+  <!-- ===== Report added ===== -->
   <div id="celebration-modal" class="celebration-overlay" role="status" aria-live="assertive">
     <div class="celebration-card">
-      <div class="celebration-emoji">🎉</div>
+      <div class="celebration-icon" data-icon="check"></div>
       <h3 class="celebration-title" data-i18n="celebrate.title">Report Added!</h3>
       <p class="celebration-subtitle" data-i18n="celebrate.text">Baseline recorded results into history.</p>
     </div>
   </div>
 
-  <!-- Medical Disclaimer Footer (Mandatory across all screens) -->
-  <footer class="app-footer" role="contentinfo">
-    <p class="footer-disclaimer" data-i18n="common.boundary">Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.</p>
-    <p class="footer-meta" data-i18n="common.madeFor">Made for the AWS student hackathon</p>
-  </footer>
-
-  <!-- Core JavaScript Modules in Order -->
   <script src="i18n.js"></script>
+  <script src="icons.js"></script>
   <script src="config.js"></script>
   <script src="mock.js"></script>
   <script src="api.js"></script>
   <script src="mascot.js"></script>
   <script src="app.js"></script>
-
-  <!-- Theme Toggle Controller -->
   <script>
-    (() => {
-      const themeBtn = document.getElementById("theme-toggle");
-      const currentTheme = localStorage.getItem("baseline_theme") || "light";
-      document.documentElement.setAttribute("data-theme", currentTheme);
-      if (themeBtn) themeBtn.textContent = currentTheme === "dark" ? "☀️" : "🌙";
-
-      if (themeBtn) {
-        themeBtn.addEventListener("click", () => {
-          const active = document.documentElement.getAttribute("data-theme");
-          const next = active === "dark" ? "light" : "dark";
-          document.documentElement.setAttribute("data-theme", next);
-          try {
-            localStorage.setItem("baseline_theme", next);
-          } catch (e) {}
-          themeBtn.textContent = next === "dark" ? "☀️" : "🌙";
-        });
-      }
-
-      // Register Service Worker for offline/PWA capability
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("sw.js").catch((err) => {
-            console.log("Service worker registration skipped:", err);
-          });
-        });
-      }
-    })();
-
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
   </script>
 </body>
 </html>

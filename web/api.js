@@ -112,7 +112,50 @@ const API = (() => {
     return err;
   }
 
+  /** JSON or form requests to the API with the session token; errors carry the API's sentence. */
+  async function call(method, path, body) {
+    if (CONFIG.useMock) {
+      throw new Error(t("error.generic"));   // the review, history and profile flows need the real backend
+    }
+    try {
+      const options = { method, headers: {} };
+      if (body instanceof FormData) {
+        options.body = body;
+      } else if (body !== undefined) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(body);
+      }
+      const res = await send(`${CONFIG.apiUrl}${path}`, options);
+      if (!res.ok) throw await handleErrorResponse(res);
+      return await res.json();
+    } catch (err) {
+      if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
+      throw err;
+    }
+  }
+
+  const q = (params) => new URLSearchParams(params).toString();
+
   return {
+    /** PATCH /api/people/{id}: only the fields sent change. */
+    updatePerson: (personId, changes) => call("PATCH", `/api/people/${encodeURIComponent(personId)}`, changes),
+
+    /** POST /api/reports/preview: read the photo and check the name. Saves nothing. */
+    previewReport: (formData) => call("POST", "/api/reports/preview", formData),
+
+    /** POST /api/reports/confirm: save the reviewed values with the photo. */
+    confirmReport: (formData) => call("POST", "/api/reports/confirm", formData),
+
+    listReports: (personId) => call("GET", `/api/reports?${q({ person_id: personId })}`),
+
+    getReport: (personId, reportId, lang) =>
+      call("GET", `/api/reports/${encodeURIComponent(reportId)}?${q({ person_id: personId, lang })}`),
+
+    editReport: (reportId, body) => call("PUT", `/api/reports/${encodeURIComponent(reportId)}`, body),
+
+    deleteReport: (personId, reportId) =>
+      call("DELETE", `/api/reports/${encodeURIComponent(reportId)}?${q({ person_id: personId })}`),
+
     /** Creates the account only; the person then logs in. Returns {email, username}. */
     async register(email, password, username) {
       if (CONFIG.useMock) return MockAPI.register(email, password, username);
