@@ -58,7 +58,7 @@ const Auth = {
 };
 
 const API = (() => {
-  const DEFAULT_ERROR_MESSAGE = "Something went wrong. Try again.";
+  const DEFAULT_ERROR_MESSAGE = () => t("error.generic");
 
   /**
    * fetch() for logged-in calls: adds the session token, and on 401 (not logged in or session
@@ -87,7 +87,7 @@ const API = (() => {
       if (!res.ok) throw await handleErrorResponse(res);
       return await res.json();
     } catch (err) {
-      if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+      if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
       throw err;
     }
   }
@@ -98,11 +98,11 @@ const API = (() => {
    * If there is none, show 'Something went wrong. Try again.'"
    */
   async function handleErrorResponse(response) {
-    let errorMessage = DEFAULT_ERROR_MESSAGE;
+    let errorMessage = DEFAULT_ERROR_MESSAGE();
     try {
       const data = await response.json();
       if (data && typeof data.error === "string" && data.error.trim()) {
-        errorMessage = data.error.trim();
+        errorMessage = I18n.server(data.error.trim());
       }
     } catch {
       // Failed to parse JSON error; preserve DEFAULT_ERROR_MESSAGE
@@ -154,7 +154,7 @@ const API = (() => {
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
-        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
         throw err;
       }
     },
@@ -177,7 +177,7 @@ const API = (() => {
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
-        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
         throw err;
       }
     },
@@ -196,7 +196,7 @@ const API = (() => {
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
-        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
         throw err;
       }
     },
@@ -217,7 +217,7 @@ const API = (() => {
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
-        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
         throw err;
       }
     },
@@ -236,7 +236,7 @@ const API = (() => {
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
-        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
         throw err;
       }
     },
@@ -258,7 +258,7 @@ const API = (() => {
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
-        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
         throw err;
       }
     }

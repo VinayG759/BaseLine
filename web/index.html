@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-i18n-title="doc.title">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -140,83 +140,84 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <a href="index.html" class="brand-logo" aria-label="Baseline Home">
+        <a href="index.html" class="brand-logo" aria-label="Baseline Home" data-i18n-aria="common.home">
           <span>Baseline</span>
-          <span class="brand-badge">AWS Hackathon</span>
+          <span class="brand-badge" data-i18n="landing.badge">AWS Hackathon</span>
         </a>
       </div>
       <div class="header-actions">
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode">🌙</button>
+        <select class="app-select lang-switch" data-lang-switch data-i18n-aria="common.language" aria-label="Language">
+          <option value="en">English</option>
+          <option value="kn">ಕನ್ನಡ</option>
+          <option value="hi">हिन्दी</option>
+        </select>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode" data-i18n-aria="common.theme">🌙</button>
       </div>
     </header>
 
     <!-- Hero Section (Screen A) -->
     <main>
       <section class="card landing-hero">
-        <img class="landing-mascot" src="mascot/wave.svg" alt="Cartoon doctor mascot waving">
-        <h1 class="landing-title">Baseline: a health record that notices</h1>
-        <p class="landing-tagline">
-          Photograph your family's lab reports. Baseline remembers every result and tells you, in your language, when a number keeps moving the wrong way.
-        </p>
-        <a href="login.html" class="btn btn-primary cta-btn">
-          Open Baseline →
-        </a>
+        <img class="landing-mascot" src="mascot/wave.svg" alt="Cartoon doctor mascot" data-i18n-alt="common.mascotAlt">
+        <h1 class="landing-title" data-i18n="landing.title">Baseline: a health record that notices</h1>
+        <p class="landing-tagline" data-i18n="landing.lead">Photograph your family's lab reports. Baseline remembers every result and tells you, in your language, when a number keeps moving the wrong way.</p>
+        <a href="login.html" class="btn btn-primary cta-btn" data-i18n="landing.cta">Open Baseline →</a>
       </section>
 
       <!-- The Problem in 3 Short Lines -->
-      <section class="problem-box" aria-label="Why Baseline exists">
+      <section class="problem-box" aria-label="Why Baseline exists" data-i18n-aria="landing.whyAria">
         <ul class="problem-list">
-          <li class="problem-item">Reports sit in a drawer.</li>
-          <li class="problem-item">Each one gets a glance.</li>
-          <li class="problem-item">The warning is in the change BETWEEN reports.</li>
+          <li class="problem-item" data-i18n="landing.why1">Reports sit in a drawer.</li>
+          <li class="problem-item" data-i18n="landing.why2">Each one gets a glance.</li>
+          <li class="problem-item" data-i18n="landing.why3">The warning is in the change BETWEEN reports.</li>
         </ul>
       </section>
 
       <!-- How It Works (3 Steps) -->
-      <section aria-label="How Baseline works" style="margin-top: 8px;">
-        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;">How It Works</h2>
+      <section aria-label="How Baseline works" data-i18n-aria="landing.howAria" style="margin-top: 8px;">
+        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;" data-i18n="landing.how">How It Works</h2>
         <div class="steps-grid">
           <div class="card step-card">
             <span class="step-icon">📸</span>
-            <h3 class="step-title">1. Photograph</h3>
-            <p class="step-desc">Snap a photo of your printed lab test report with your camera.</p>
+            <h3 class="step-title" data-i18n="landing.step1">1. Photograph</h3>
+            <p class="step-desc" data-i18n="landing.step1Text">Snap a photo of your printed lab test report with your camera.</p>
           </div>
           <div class="card step-card">
             <span class="step-icon">🧠</span>
-            <h3 class="step-title">2. Remembers</h3>
-            <p class="step-desc">Digits every number and securely connects it to past records.</p>
+            <h3 class="step-title" data-i18n="landing.step2">2. Remembers</h3>
+            <p class="step-desc" data-i18n="landing.step2Text">Reads every number and connects it to your earlier reports.</p>
           </div>
           <div class="card step-card">
             <span class="step-icon">📈</span>
-            <h3 class="step-title">3. Notices</h3>
-            <p class="step-desc">Instantly graphs trends against normal bands and highlights rising risks.</p>
+            <h3 class="step-title" data-i18n="landing.step3">3. Notices</h3>
+            <p class="step-desc" data-i18n="landing.step3Text">Charts each result against its normal range and points out numbers that keep rising.</p>
           </div>
         </div>
       </section>
 
       <!-- Feature Highlights -->
-      <section aria-label="Key features" style="margin-top: 14px;">
-        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;">Built for Families &amp; Doctors</h2>
+      <section aria-label="Key features" data-i18n-aria="landing.featuresAria" style="margin-top: 14px;">
+        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;" data-i18n="landing.features">Built for Families &amp; Doctors</h2>
         <div class="features-grid">
           <div class="feature-chip">
             <span class="feature-icon">🌐</span>
             <span class="feature-title">English / ಕನ್ನಡ / हिन्दी</span>
-            <span class="feature-desc">Summaries in your mother tongue</span>
+            <span class="feature-desc" data-i18n="landing.f1Text">Summaries in your mother tongue</span>
           </div>
           <div class="feature-chip">
             <span class="feature-icon">🩺</span>
-            <span class="feature-title">Doctor View</span>
-            <span class="feature-desc">Clinical tables ready for consultation</span>
+            <span class="feature-title" data-i18n="landing.f2">Doctor View</span>
+            <span class="feature-desc" data-i18n="landing.f2Text">Clinical tables ready for consultation</span>
           </div>
           <div class="feature-chip">
             <span class="feature-icon">💬</span>
-            <span class="feature-title">Ask Questions</span>
-            <span class="feature-desc">Clear Q&amp;A directly from your reports</span>
+            <span class="feature-title" data-i18n="landing.f3">Ask Questions</span>
+            <span class="feature-desc" data-i18n="landing.f3Text">Clear answers straight from your reports</span>
           </div>
           <div class="feature-chip">
             <span class="feature-icon">🗓️</span>
-            <span class="feature-title">Next-Test Reminders</span>
-            <span class="feature-desc">Gentle follow-up tracking dates</span>
+            <span class="feature-title" data-i18n="landing.f4">Next-Test Reminders</span>
+            <span class="feature-desc" data-i18n="landing.f4Text">Gentle reminders when the next test is due</span>
           </div>
         </div>
       </section>
@@ -225,13 +226,15 @@
 
   <!-- Medical Disclaimer Footer (Mandatory across all screens) -->
   <footer class="app-footer" role="contentinfo">
-    <p class="footer-disclaimer">
-      Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.
-    </p>
-    <p class="footer-meta">
-      Made for the AWS student hackathon
-    </p>
+    <p class="footer-disclaimer" data-i18n="common.boundary">Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.</p>
+    <p class="footer-meta" data-i18n="common.madeFor">Made for the AWS student hackathon</p>
   </footer>
+
+  <script src="i18n.js"></script>
+  <script src="mascot.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => Mascot.decorate(document.querySelector(".landing-mascot"), "wave"));
+  </script>
 
   <!-- Theme Toggle Controller -->
   <script>

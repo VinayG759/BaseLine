@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-i18n-title="doc.titleLogin">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,43 +20,50 @@
 </head>
 <body>
   <main class="auth-page">
-    <a href="index.html" class="brand-logo auth-brand" aria-label="Baseline Home"><span>Baseline</span></a>
+    <div class="auth-top">
+      <a href="index.html" class="brand-logo auth-brand" aria-label="Baseline Home" data-i18n-aria="common.home"><span>Baseline</span></a>
+      <select class="app-select lang-switch" data-lang-switch data-i18n-aria="common.language" aria-label="Language">
+        <option value="en">English</option>
+        <option value="kn">ಕನ್ನಡ</option>
+        <option value="hi">हिन्दी</option>
+      </select>
+    </div>
 
     <div class="auth-mascot">
-      <img class="mascot-avatar" src="mascot/wave.svg" alt="Cartoon doctor mascot waving">
+      <img class="mascot-avatar" src="mascot/wave.svg" alt="Cartoon doctor mascot" data-i18n-alt="common.mascotAlt">
       <p class="mascot-bubble" id="auth-greeting">Welcome back! Log in to see your family's lab history.</p>
     </div>
 
     <section class="card auth-card">
-      <div class="auth-tabs" role="tablist" aria-label="Log in or create an account">
-        <button type="button" role="tab" id="tab-login" class="auth-tab active" aria-selected="true">Log in</button>
-        <button type="button" role="tab" id="tab-register" class="auth-tab" aria-selected="false">Create account</button>
+      <div class="auth-tabs" role="tablist" aria-label="Log in or create an account" data-i18n-aria="login.tabsAria">
+        <button type="button" role="tab" id="tab-login" class="auth-tab active" aria-selected="true" data-i18n="login.login">Log in</button>
+        <button type="button" role="tab" id="tab-register" class="auth-tab" aria-selected="false" data-i18n="login.register">Create account</button>
       </div>
 
       <form id="auth-form" class="auth-form" novalidate>
         <div id="username-row" hidden>
-          <label for="auth-username" class="auth-label">Username</label>
-          <input type="text" id="auth-username" class="date-input auth-input" autocomplete="nickname" maxlength="30" placeholder="What should we call you?">
+          <label for="auth-username" class="auth-label" data-i18n="login.username">Username</label>
+          <input type="text" id="auth-username" class="date-input auth-input" autocomplete="nickname" maxlength="30" placeholder="What should we call you?" data-i18n-placeholder="login.usernamePh">
         </div>
 
         <div>
-          <label for="auth-email" class="auth-label">Email</label>
+          <label for="auth-email" class="auth-label" data-i18n="login.email">Email</label>
           <input type="email" id="auth-email" class="date-input auth-input" autocomplete="email" required maxlength="254" placeholder="you@example.com">
         </div>
 
         <div>
-          <label for="auth-password" class="auth-label">Password</label>
+          <label for="auth-password" class="auth-label" data-i18n="login.password">Password</label>
           <div class="password-field">
-            <input type="password" id="auth-password" class="date-input auth-input" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters">
-            <button type="button" class="reveal-btn" data-target="auth-password" aria-label="Show password" aria-pressed="false">👁</button>
+            <input type="password" id="auth-password" class="date-input auth-input" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters" data-i18n-placeholder="login.passwordPh">
+            <button type="button" class="reveal-btn" data-target="auth-password" aria-label="Show password" data-i18n-aria="login.show" aria-pressed="false">👁</button>
           </div>
         </div>
 
         <div id="confirm-row" hidden>
-          <label for="auth-confirm" class="auth-label">Confirm password</label>
+          <label for="auth-confirm" class="auth-label" data-i18n="login.confirm">Confirm password</label>
           <div class="password-field">
-            <input type="password" id="auth-confirm" class="date-input auth-input" autocomplete="new-password" maxlength="128" placeholder="Type it again">
-            <button type="button" class="reveal-btn" data-target="auth-confirm" aria-label="Show password" aria-pressed="false">👁</button>
+            <input type="password" id="auth-confirm" class="date-input auth-input" autocomplete="new-password" maxlength="128" placeholder="Type it again" data-i18n-placeholder="login.confirmPh">
+            <button type="button" class="reveal-btn" data-target="auth-confirm" aria-label="Show password" data-i18n-aria="login.show" aria-pressed="false">👁</button>
           </div>
         </div>
 
@@ -67,16 +74,17 @@
       </form>
     </section>
 
-    <p class="auth-boundary">
-      Baseline explains and tracks lab results. It does not diagnose or recommend treatment.
-      Talk to a doctor about any result.
-    </p>
+    <p class="auth-boundary" data-i18n="common.boundary">Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.</p>
   </main>
 
+  <script src="i18n.js"></script>
   <script src="config.js"></script>
   <script src="mock.js"></script>
   <script src="api.js"></script>
+  <script src="mascot.js"></script>
   <script>
+    Mascot.decorate(document.querySelector(".auth-mascot .mascot-avatar"), "wave");
+
     (() => {
       // Already logged in? Go straight to the app.
       if (Auth.token()) {
@@ -107,10 +115,8 @@
         confirmRow.hidden = !isRegister;
         usernameRow.hidden = !isRegister;
         password.autocomplete = isRegister ? "new-password" : "current-password";
-        submit.textContent = isRegister ? "Create account" : "Log in";
-        greeting.textContent = isRegister
-          ? "Create an account to keep lab reports for yourself and your family."
-          : "Welcome back! Log in to see your family's lab history.";
+        submit.textContent = t(isRegister ? "login.register" : "login.login");
+        greeting.textContent = t(isRegister ? "login.welcomeNew" : "login.welcome");
         errorBox.textContent = "";
         notice.textContent = "";
       }
@@ -122,12 +128,23 @@
           const show = input.type === "password";
           input.type = show ? "text" : "password";
           btn.setAttribute("aria-pressed", String(show));
-          btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+          btn.setAttribute("aria-label", t(show ? "login.hide" : "login.show"));
           btn.textContent = show ? "🙈" : "👁";
         });
       });
 
+      // Language switched: redraw the text this script set itself (the rest is data-i18n).
+      document.addEventListener("baseline:lang", () => {
+        const notice = errorBox.textContent;
+        setMode(mode);
+        errorBox.textContent = notice;
+        document.querySelectorAll(".reveal-btn").forEach((btn) => {
+          btn.setAttribute("aria-label", t(btn.getAttribute("aria-pressed") === "true" ? "login.hide" : "login.show"));
+        });
+      });
+
       tabLogin.addEventListener("click", () => setMode("login"));
+      setMode("login");
       tabRegister.addEventListener("click", () => setMode("register"));
 
       document.getElementById("auth-form").addEventListener("submit", async (event) => {
@@ -136,12 +153,12 @@
         const email = document.getElementById("auth-email").value.trim();
 
         if (mode === "register" && password.value !== confirm.value) {
-          errorBox.textContent = "The two passwords don't match.";
+          errorBox.textContent = t("login.mismatch");
           return;
         }
 
         submit.disabled = true;
-        submit.textContent = mode === "register" ? "Creating account..." : "Logging in...";
+        submit.textContent = t(mode === "register" ? "login.creating" : "login.loggingIn");
         try {
           if (mode === "register") {
             // Account created: switch to the login tab so the person logs in themselves.
@@ -150,7 +167,7 @@
             document.getElementById("auth-email").value = created.email;
             password.value = "";
             confirm.value = "";
-            notice.textContent = `Account created, ${created.username}. Log in with your new password.`;
+            notice.textContent = t("login.created", { name: created.username });
             submit.disabled = false;
             password.focus();
             return;
@@ -160,7 +177,7 @@
         } catch (err) {
           errorBox.textContent = err.message;
           submit.disabled = false;
-          submit.textContent = mode === "register" ? "Create account" : "Log in";
+          submit.textContent = t(mode === "register" ? "login.register" : "login.login");
         }
       });
     })();

@@ -20,22 +20,9 @@ const State = {
   isChatting: false
 };
 
-// Date Formatter Helper ("12 Sep 2026")
-function formatDateDisplay(dateStr) {
-  if (!dateStr) return "";
-  try {
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      const year = parts[0];
-      const monthIndex = parseInt(parts[1], 10) - 1;
-      const day = parseInt(parts[2], 10);
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      return `${day} ${months[monthIndex]} ${year}`;
-    }
-  } catch {
-    // fallback
-  }
-  return dateStr;
+// Date Formatter Helper ("12 Sept 2026", month names in the chosen language; the doctor view passes "en")
+function formatDateDisplay(dateStr, lang = I18n.lang()) {
+  return I18n.formatDate(dateStr, lang);
 }
 
 // Today formatted for Doctor view ("19 Sep 2026")
@@ -54,10 +41,10 @@ async function shrinkImage(file, maxDimension = 2000, quality = 0.88) {
   console.log(`[Canvas Resizing] Original file size: ${(file.size / (1024 * 1024)).toFixed(2)} MB`);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Failed to read image file."));
+    reader.onerror = () => reject(new Error(t("error.photo")));
     reader.onload = (e) => {
       const img = new Image();
-      img.onerror = () => reject(new Error("Failed to parse image for resizing."));
+      img.onerror = () => reject(new Error(t("error.photo")));
       img.onload = () => {
         let { width, height } = img;
         if (width > maxDimension || height > maxDimension) {
@@ -78,7 +65,7 @@ async function shrinkImage(file, maxDimension = 2000, quality = 0.88) {
         canvas.toBlob(
           (blob) => {
             if (!blob) {
-              reject(new Error("Failed to compress image."));
+              reject(new Error(t("error.photo")));
               return;
             }
             console.log(
@@ -218,7 +205,7 @@ function createTrendSvgChart(trend) {
     }
   }
 
-  const chartAriaLabel = `${trend.test_name}: ${history.length} results, latest ${trend.current}`;
+  const chartAriaLabel = t("card.chart", { test: trend.test_name, n: history.length, value: trend.current });
 
   return `
     <svg viewBox="0 0 ${width} ${height}" class="trend-chart-svg" role="img" aria-label="${escapeHtml(chartAriaLabel)}">
@@ -236,11 +223,7 @@ const BaselineApp = {
       return;
     }
     const username = Auth.username() || (Auth.email() || "").split("@")[0];
-    const nameEl = document.getElementById("account-name");
-    if (nameEl) {
-      nameEl.textContent = username;
-      nameEl.title = Auth.email() || "";
-    }
+    this.renderSignedIn();
     const logoutBtn = document.getElementById("logout-btn");
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async () => {
@@ -251,21 +234,41 @@ const BaselineApp = {
     }
 
     Mascot.init(document.getElementById("mascot-container"));
-    if (username) Mascot.say(`Hi ${username}! Loading your health records...`, "wave");
+    if (username) Mascot.say(t("mascot.hiLoading", { name: username }), "wave");
+    document.addEventListener("baseline:lang", (e) => this.onLanguageChanged(e.detail));
     this.bindEvents();
     this.loadSavedLanguage();
     await this.loadPeople();
   },
 
-  loadSavedLanguage() {
-    try {
-      const savedLang = localStorage.getItem("baseline_lang");
-      if (savedLang && ["en", "kn", "hi"].includes(savedLang)) {
-        State.currentLang = savedLang;
-      }
-    } catch (e) {
-      console.warn("localStorage unavailable:", e);
+  /** "Signed in as <b>name</b>", with the name in bold whatever the word order of the language. */
+  renderSignedIn() {
+    const el = document.getElementById("account-signed-in");
+    if (!el) return;
+    const name = Auth.username() || (Auth.email() || "").split("@")[0];
+    const [before, after = ""] = t("app.signedIn", { name: "\u0000" }).split("\u0000");
+    const strong = document.createElement("strong");
+    strong.textContent = name;
+    strong.title = Auth.email() || "";
+    el.replaceChildren(before, strong, after);
+  },
+
+  /** Language switched (here or on another page): redraw everything this script wrote itself. */
+  onLanguageChanged(lang) {
+    State.currentLang = lang;
+    const langSelect = document.getElementById("lang-select");
+    if (langSelect) langSelect.value = lang;
+    this.renderSignedIn();
+    this.renderPeopleDropdown();
+    if (State.currentPerson) {
+      this.loadTrends();   // summaries come back from the server in the new language
+    } else {
+      Mascot.evaluateState(null, null);
     }
+  },
+
+  loadSavedLanguage() {
+    State.currentLang = I18n.lang();
     const langSelect = document.getElementById("lang-select");
     if (langSelect) langSelect.value = State.currentLang;
     document.documentElement.lang = State.currentLang;
@@ -308,7 +311,7 @@ const BaselineApp = {
       // Nobody yet: say so in the dropdown and draw attention to "+ Add person".
       const option = document.createElement("option");
       option.value = "";
-      option.textContent = "No one added yet";
+      option.textContent = t("app.noOne");
       option.disabled = true;
       option.selected = true;
       select.appendChild(option);
@@ -319,7 +322,7 @@ const BaselineApp = {
     State.people.forEach((person) => {
       const option = document.createElement("option");
       option.value = person.person_id;
-      option.textContent = person.is_self ? `Myself (${person.display_name})` : person.display_name;
+      option.textContent = person.is_self ? t("app.myself", { name: person.display_name }) : person.display_name;
       if (State.currentPerson && person.person_id === State.currentPerson.person_id) {
         option.selected = true;
       }
@@ -338,7 +341,7 @@ const BaselineApp = {
 
   async selectPerson(personId) {
     if (State.isUploading) {
-      this.showToast("Upload in progress. Please wait.", "info");
+      this.showToast(t("upload.inProgress"), "info");
       // Revert select dropdown value back to current person
       const select = document.getElementById("person-select");
       if (select && State.currentPerson) select.value = State.currentPerson.person_id;
@@ -359,15 +362,8 @@ const BaselineApp = {
     await this.loadTrends();
   },
 
-  async setLanguage(lang) {
-    State.currentLang = lang;
-    document.documentElement.lang = lang;
-    try {
-      localStorage.setItem("baseline_lang", lang);
-    } catch (e) {
-      console.warn("localStorage write failed:", e);
-    }
-    await this.loadTrends();
+  setLanguage(lang) {
+    I18n.setLang(lang);   // redraws static text and fires "baseline:lang" -> onLanguageChanged
   },
 
   async loadTrends() {
@@ -377,7 +373,7 @@ const BaselineApp = {
     if (trendsContainer) {
       trendsContainer.innerHTML = `
         <div class="card loading-card" role="status">
-          <p>Loading health history...</p>
+          <p>${escapeHtml(t("trends.loading"))}</p>
         </div>
       `;
     }
@@ -424,7 +420,7 @@ const BaselineApp = {
     historyDates.forEach((dateStr, idx) => {
       nodesHtml += `
         <div class="path-node past-node">
-          <div class="node-circle" title="Report Date">
+          <div class="node-circle" title="${escapeHtml(t("path.reportDate"))}">
             <span class="node-icon">📄</span>
           </div>
           <span class="node-date">${escapeHtml(formatDateDisplay(dateStr))}</span>
@@ -439,10 +435,10 @@ const BaselineApp = {
       const dueFormatted = formatDateDisplay(data.reminder.next_due);
       nodesHtml += `
         <div class="path-node locked-node ${isOverdue ? "overdue-node" : ""}">
-          <div class="node-circle" title="${isOverdue ? "Overdue Test" : "Next Test Due"}">
+          <div class="node-circle" title="${escapeHtml(t(isOverdue ? "path.overdueTitle" : "path.nextTitle"))}">
             <span class="node-icon">${isOverdue ? "⚠️" : "🔒"}</span>
           </div>
-          <span class="node-label">${isOverdue ? "Overdue" : "Next Test"}</span>
+          <span class="node-label">${escapeHtml(t(isOverdue ? "path.overdue" : "path.next"))}</span>
           <span class="node-date">${escapeHtml(dueFormatted)}</span>
         </div>
       `;
@@ -450,7 +446,7 @@ const BaselineApp = {
 
     section.innerHTML = `
       <div class="card history-path-card">
-        <h3 class="path-heading">Tracking Journey</h3>
+        <h3 class="path-heading">${escapeHtml(t("path.heading"))}</h3>
         <div class="history-path-track" role="list">
           ${nodesHtml}
         </div>
@@ -469,8 +465,8 @@ const BaselineApp = {
       container.innerHTML = `
         <div class="card empty-trends-card">
           <div class="empty-icon">📋</div>
-          <h3>No reports tracked yet</h3>
-          <p>Photograph or choose a lab report below to start tracking trends.</p>
+          <h3>${escapeHtml(t("trends.emptyTitle"))}</h3>
+          <p>${escapeHtml(t("trends.emptyText"))}</p>
         </div>
       `;
       return;
@@ -491,19 +487,20 @@ const BaselineApp = {
       // Badge
       let badgeHtml = "";
       if (isHigh) {
-        badgeHtml = `<span class="status-badge badge-high" aria-label="High result">H</span>`;
+        badgeHtml = `<span class="status-badge badge-high" aria-label="${escapeHtml(t("card.high"))}">H</span>`;
       } else if (isLow) {
-        badgeHtml = `<span class="status-badge badge-low" aria-label="Low result">L</span>`;
+        badgeHtml = `<span class="status-badge badge-low" aria-label="${escapeHtml(t("card.low"))}">L</span>`;
       }
 
       // Normal Range Text
-      let rangeText = "No reference range printed";
+      const limits = { low: trend.ref_low, high: trend.ref_high, unit: trend.unit };
+      let rangeText = t("range.none");
       if (typeof trend.ref_low === "number" && typeof trend.ref_high === "number") {
-        rangeText = `Normal ${trend.ref_low}–${trend.ref_high} ${trend.unit}`;
+        rangeText = t("range.both", limits);
       } else if (typeof trend.ref_high === "number") {
-        rangeText = `Normal below ${trend.ref_high} ${trend.unit}`;
+        rangeText = t("range.below", limits);
       } else if (typeof trend.ref_low === "number") {
-        rangeText = `Normal above ${trend.ref_low} ${trend.unit}`;
+        rangeText = t("range.above", limits);
       }
 
       // SVG Chart
@@ -516,7 +513,7 @@ const BaselineApp = {
         <article class="card trend-card ${isOutOfRange ? "card-out-of-range" : ""} ${updatedClass}"
                  tabindex="0"
                  role="button"
-                 aria-label="Tap to have ${escapeHtml(CONFIG.mascotName)} speak summary for ${escapeHtml(trend.test_name)}"
+                 aria-label="${escapeHtml(t("card.tap", { test: trend.test_name }))}"
                  data-summary="${escapeHtml(trend.summary)}">
           <div class="trend-card-header">
             <div class="test-title-group">
@@ -526,7 +523,7 @@ const BaselineApp = {
             <div class="test-value-group ${isOutOfRange ? "value-danger" : ""}">
               <span class="test-value">${escapeHtml(trend.current)}</span>
               <span class="test-unit">${escapeHtml(trend.unit)}</span>
-              ${arrowChar ? `<span class="trend-arrow" aria-label="${escapeHtml(trend.direction)}">${arrowChar}</span>` : ""}
+              ${arrowChar ? `<span class="trend-arrow" aria-label="${escapeHtml(t("dir." + trend.direction))}">${arrowChar}</span>` : ""}
             </div>
           </div>
 
@@ -549,7 +546,7 @@ const BaselineApp = {
       const speakSummary = () => {
         const summary = card.getAttribute("data-summary");
         if (summary) {
-          Mascot.say(summary, "pointing");
+          Mascot.say(summary, "pointing", { temporary: true });
         }
       };
       card.addEventListener("click", speakSummary);
@@ -602,9 +599,9 @@ const BaselineApp = {
 
     // Never fail silently: say what's missing.
     const missing = !State.currentPerson
-      ? "Add a person first: tap \"+ Add person\", then read the report."
+      ? t("upload.needPerson")
       : !State.selectedPhotoBlob
-        ? "Take or choose a photo of the report first."
+        ? t("upload.needPhoto")
         : null;
     if (missing) {
       uploadStatus.textContent = missing;
@@ -616,20 +613,20 @@ const BaselineApp = {
     State.isUploading = true;
     readBtn.disabled = true;
     readBtn.classList.add("btn-loading");
-    readBtn.textContent = "Reading...";
+    readBtn.textContent = t("upload.reading");
 
     // Technical Concept: aria-live
     // aria-live="polite" notifies screen readers of progressive background state changes without interrupting current speech.
-    uploadStatus.textContent = "Reading the report...";
+    uploadStatus.textContent = t("upload.readingReport");
     uploadStatus.className = "upload-status status-loading";
-    Mascot.setLoading("Reading the report...");
+    Mascot.setLoading(t("upload.readingReport"));
 
     // Progressive status update after 3 seconds per Part 7 Screen D
     const distinctDatesCount = collectReportDates(State.trendsData).length;
 
     const progressTimer = setTimeout(() => {
       if (State.isUploading) {
-        const msg = `Comparing with ${distinctDatesCount} earlier reports...`;
+        const msg = t("upload.comparing", { n: distinctDatesCount });
         uploadStatus.textContent = msg;
         Mascot.setLoading(msg);
       }
@@ -653,15 +650,17 @@ const BaselineApp = {
 
       // Part 6 Celebration Habit:
       // Small celebration when a report is ADDED ("Report added to Mrs Sunita Rao's history").
-      const personName = State.currentPerson.is_self ? "your" : `${State.currentPerson.display_name}'s`;
-      const trendCount = result.trends ? result.trends.filter((t) => t.updated).length : 0;
+      const addedTitle = State.currentPerson.is_self
+        ? t("celebrate.self")
+        : t("celebrate.other", { name: State.currentPerson.display_name });
+      const trendCount = result.trends ? result.trends.filter((tr) => tr.updated).length : 0;
       const successMsg = result.report && result.report.report_date
-        ? `Added ${trendCount} results from the ${formatDateDisplay(result.report.report_date)} report.`
-        : `Added ${trendCount} results.`;
+        ? t("upload.added", { n: trendCount, date: formatDateDisplay(result.report.report_date) })
+        : t("upload.addedNoDate", { n: trendCount });
 
-      this.triggerCelebration(`Report added to ${personName} history!`, successMsg);
-      const anyOutOfRange = (result.trends || []).some((t) => t.status === "high" || t.status === "low");
-      Mascot.say(`Report added to ${personName} history. ${successMsg}`, anyOutOfRange ? "pointing" : "smile");
+      this.triggerCelebration(addedTitle, successMsg);
+      const anyOutOfRange = (result.trends || []).some((tr) => tr.status === "high" || tr.status === "low");
+      Mascot.say(`${addedTitle} ${successMsg}`, anyOutOfRange ? "pointing" : "celebrate");
 
       // Reset photo state
       this.clearPhotoSelection();
@@ -677,7 +676,7 @@ const BaselineApp = {
     } finally {
       State.isUploading = false;
       readBtn.classList.remove("btn-loading");
-      readBtn.textContent = "Read report";
+      readBtn.textContent = t("upload.read");
     }
   },
 
@@ -744,7 +743,7 @@ const BaselineApp = {
     if (!content) return;
 
     const reportDatesStr = (docData.report_dates && docData.report_dates.length > 0)
-      ? docData.report_dates.map(formatDateDisplay).join(", ")
+      ? docData.report_dates.map((d) => formatDateDisplay(d, "en")).join(", ")
       : "None";
 
     let tablesHtml = "";
@@ -760,7 +759,7 @@ const BaselineApp = {
 
           rowsHtml += `
             <tr class="${isFlagged ? "flagged-row" : ""}">
-              <td>${escapeHtml(formatDateDisplay(r.date))}</td>
+              <td>${escapeHtml(formatDateDisplay(r.date, "en"))}</td>
               <td>${escapeHtml(r.value)}</td>
               <td>${escapeHtml(r.unit || t.unit)}</td>
               <td>${escapeHtml(refRangeDisplay)}</td>
@@ -849,7 +848,7 @@ const BaselineApp = {
     // 2. Append thinking bubble + Mascot reading pose
     const thinkingBubble = document.createElement("div");
     thinkingBubble.className = "chat-bubble mascot-bubble mascot-thinking";
-    thinkingBubble.textContent = "Thinking...";
+    thinkingBubble.textContent = t("chat.thinking");
     messagesContainer.appendChild(thinkingBubble);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
@@ -862,10 +861,10 @@ const BaselineApp = {
       // Append reply bubble
       const replyBubble = document.createElement("div");
       replyBubble.className = "chat-bubble mascot-reply-bubble";
-      replyBubble.innerHTML = escapeHtml(response.reply);
+      replyBubble.textContent = I18n.server(response.reply);
       messagesContainer.appendChild(replyBubble);
 
-      Mascot.say(response.reply, "pointing");
+      Mascot.say(I18n.server(response.reply), "pointing", { temporary: true });
     } catch (err) {
       thinkingBubble.remove();
       const errBubble = document.createElement("div");
@@ -944,7 +943,7 @@ const BaselineApp = {
           addPersonModal.style.display = "none";
           addPersonForm.reset();
           await this.selectPerson(newPerson.person_id);
-          this.showToast(`Added profile for ${newPerson.display_name}`, "success");
+          this.showToast(t("person.added", { name: newPerson.display_name }), "success");
         } catch (err) {
           errContainer.textContent = err.message;
         }

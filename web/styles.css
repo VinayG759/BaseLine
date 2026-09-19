@@ -1376,3 +1376,259 @@ html[lang="kn"], html[lang="hi"],
   outline: 3px solid var(--accent);
   outline-offset: -3px;
 }
+
+/* ===== Dr. Bindu: the rigged mascot (see mascot.js) ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mascot-avatar-wrapper {
+  width: 88px;
+  height: 88px;
+  overflow: visible;          /* waving hands and confetti may leave the circle */
+  cursor: pointer;
+}
+
+.mascot-avatar-wrapper:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.bindu {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.landing-hero .bindu {
+  width: 128px;
+  height: 132px;
+}
+
+.auth-mascot .bindu {
+  width: 80px;
+  height: 84px;
+  flex-shrink: 0;
+}
+
+.bindu .b-sleeve {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.bindu .b-arms {
+  filter: drop-shadow(0 0 0.7px #94a3b8);
+}
+
+.bindu .b-hand {
+  fill: #fcd34d;
+}
+
+/* Everything pose-specific starts hidden; the pose class shows its parts. */
+.bindu .b-arms,
+.bindu .b-prop,
+.bindu .b-happy-eyes,
+.bindu .b-mouth,
+.bindu .b-mouth-talk,
+.bindu .b-dots,
+.bindu .b-confetti {
+  display: none;
+}
+
+.pose-wave .arms-wave,
+.pose-smile .arms-rest,
+.pose-pointing .arms-point,
+.pose-reading .arms-hold,
+.pose-calendar .arms-hold,
+.pose-thinking .arms-chin,
+.pose-shrug .arms-shrug,
+.pose-celebrate .arms-up,
+.pose-reading .b-clipboard,
+.pose-calendar .b-calendar,
+.pose-thinking .b-dots,
+.pose-celebrate .b-happy-eyes {
+  display: inline;
+}
+
+.pose-wave .m-smile,
+.pose-smile .m-smile,
+.pose-pointing .m-soft,
+.pose-reading .m-soft,
+.pose-calendar .m-soft,
+.pose-shrug .m-soft,
+.pose-thinking .m-o,
+.pose-celebrate .m-grin {
+  display: inline;
+}
+
+.pose-celebrate .b-look {
+  display: none;
+}
+
+/* Talking: the pose mouth gives way to a flapping one while the words type out. */
+.bindu.talking .b-mouth {
+  display: none !important;
+}
+
+.bindu.talking .b-mouth-talk {
+  display: inline;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: b-talk 0.18s ease-in-out infinite alternate;
+}
+
+@keyframes b-talk {
+  from { transform: scaleY(0.3); }
+  to { transform: scaleY(1); }
+}
+
+/* Idle life: breathing, a slight head bob, blinking. */
+.bindu .b-all {
+  transform-box: view-box;
+  transform-origin: 60px 118px;
+  animation: b-breathe 3.6s ease-in-out infinite;
+}
+
+@keyframes b-breathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.018); }
+}
+
+.bindu .b-head {
+  animation: b-bob 3.6s ease-in-out infinite;
+}
+
+@keyframes b-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.9px); }
+}
+
+.bindu .b-eyes circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: b-blink 4.3s infinite;
+}
+
+@keyframes b-blink {
+  0%, 93%, 100% { transform: scaleY(1); }
+  96% { transform: scaleY(0.1); }
+}
+
+/* Where she looks, by pose (the pointer-following offset sits on top of this). */
+.bindu .b-eyes {
+  transition: transform 0.25s ease;
+}
+
+.pose-reading .b-eyes { transform: translate(0, 1.8px); }
+.pose-calendar .b-eyes { transform: translate(0, 1.4px); }
+.pose-thinking .b-eyes { transform: translate(1.6px, -1.8px); }
+.pose-pointing .b-eyes { transform: translate(1.8px, -0.6px); }
+
+/* Brows carry the mood: calm concern when pointing at red results, raised when shrugging or thinking. */
+.bindu .brow-l,
+.bindu .brow-r {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.25s ease;
+}
+
+.pose-pointing .brow-l { transform: rotate(-6deg); }
+.pose-pointing .brow-r { transform: rotate(6deg); }
+.pose-shrug .brow-l,
+.pose-shrug .brow-r { transform: translateY(-2.5px); }
+.pose-thinking .brow-l { transform: translateY(-2px) rotate(-4deg); }
+.pose-celebrate .brow-l,
+.pose-celebrate .brow-r { transform: translateY(-2px); }
+
+/* Waving and pointing arms move from the shoulder. */
+.bindu .b-wave-arm {
+  transform-box: view-box;
+  transform-origin: 87px 85px;
+  animation: b-wave 1.1s ease-in-out infinite;
+}
+
+@keyframes b-wave {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-14deg); }
+  75% { transform: rotate(9deg); }
+}
+
+.bindu .b-point-arm {
+  animation: b-point 1.4s ease-in-out infinite;
+}
+
+@keyframes b-point {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(1.5px, -1px); }
+}
+
+/* Thinking dots rise one after another. */
+.bindu .b-dots circle {
+  fill: #94a3b8;
+  animation: b-dot 1.2s ease-in-out infinite;
+}
+
+.bindu .b-dots circle:nth-child(2) { animation-delay: 0.2s; }
+.bindu .b-dots circle:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes b-dot {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+/* Celebration: a jump and a burst of confetti. */
+.bindu.b-jump {
+  animation: b-jump 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes b-jump {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-12px) scale(1.04, 0.98); }
+  60% { transform: translateY(0) scale(1.03, 0.96); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.pose-celebrate.b-jump .b-confetti {
+  display: inline;
+}
+
+.bindu .b-confetti > * {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: b-confetti 1.1s ease-out forwards;
+}
+
+@keyframes b-confetti {
+  0% { opacity: 1; transform: translateY(8px) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(-14px) rotate(160deg); }
+}
+
+/* Tap: a quick bounce. */
+.mascot-avatar-wrapper.b-bounce {
+  animation: b-bounce 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes b-bounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.14) rotate(-4deg); }
+  70% { transform: scale(0.96) rotate(2deg); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bindu *,
+  .bindu,
+  .mascot-avatar-wrapper.b-bounce {
+    animation: none !important;
+  }
+}

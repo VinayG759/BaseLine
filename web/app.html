@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-i18n-title="doc.title">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,41 +20,37 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <a href="index.html" class="brand-logo" id="brand-link" aria-label="Baseline Home">
+        <a href="index.html" class="brand-logo" id="brand-link" aria-label="Baseline Home" data-i18n-aria="common.home">
           <span>Baseline</span>
-          <span class="brand-badge">Demo</span>
+          <span class="brand-badge" data-i18n="app.demo">Demo</span>
         </a>
       </div>
       <div class="header-actions">
-        <button id="doctor-view-btn" class="btn btn-secondary btn-sm" aria-label="Open Doctor View">
-          🩺 Doctor view
-        </button>
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode">🌙</button>
+        <button id="doctor-view-btn" class="btn btn-secondary btn-sm" aria-label="Open Doctor View" data-i18n-aria="app.doctorViewAria" data-i18n="app.doctorView">🩺 Doctor view</button>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode" data-i18n-aria="common.theme">🌙</button>
       </div>
     </header>
 
     <div class="account-bar">
-      <span>Signed in as <strong id="account-name"></strong></span>
-      <button type="button" id="logout-btn" class="link-btn">Log out</button>
+      <span id="account-signed-in"></span>
+      <button type="button" id="logout-btn" class="link-btn" data-i18n="app.logout">Log out</button>
     </div>
 
     <!-- Screen B: People and Language Selector -->
-    <section class="card people-bar" aria-label="Family Member and Language Controls">
+    <section class="card people-bar" aria-label="Family Member and Language Controls" data-i18n-aria="app.peopleAria">
       <div class="people-controls">
         <div class="select-wrapper">
           <label for="person-select" class="visually-hidden" style="display:none;">Select Person</label>
-          <select id="person-select" class="app-select" aria-label="Select Family Member">
-            <option value="">Loading profiles...</option>
+          <select id="person-select" class="app-select" aria-label="Select Family Member" data-i18n-aria="app.selectPerson">
+            <option value="" data-i18n="app.loadingProfiles">Loading profiles...</option>
           </select>
         </div>
 
-        <button id="open-add-person-btn" class="btn btn-secondary btn-sm" aria-label="Add a new family member">
-          + Add person
-        </button>
+        <button id="open-add-person-btn" class="btn btn-secondary btn-sm" aria-label="Add a new family member" data-i18n-aria="app.addPersonAria" data-i18n="app.addPerson">+ Add person</button>
 
         <div class="select-wrapper lang-select-wrapper">
           <label for="lang-select" class="visually-hidden" style="display:none;">Select Language</label>
-          <select id="lang-select" class="app-select" aria-label="Select Language">
+          <select id="lang-select" class="app-select" aria-label="Select Language" data-i18n-aria="common.language">
             <option value="en">English</option>
             <option value="kn">ಕನ್ನಡ</option>
             <option value="hi">हिन्दी</option>
@@ -64,31 +60,25 @@
     </section>
 
     <!-- Doctor Mascot & Dynamic Speech Bubble -->
-    <section id="mascot-container" class="mascot-section" aria-label="Doctor Mascot Assistant">
+    <section id="mascot-container" class="mascot-section" aria-label="Doctor Mascot Assistant" data-i18n-aria="app.mascotAria">
       <div class="mascot-avatar-wrapper">
-        <img class="mascot-avatar" src="mascot/wave.svg" alt="Cartoon doctor mascot">
+        <img class="mascot-avatar" src="mascot/wave.svg" alt="Cartoon doctor mascot" data-i18n-alt="common.mascotAlt">
       </div>
-      <div class="mascot-bubble" role="status" aria-live="polite">
-        Hello! Loading your health records...
-      </div>
+      <div class="mascot-bubble" role="status" aria-live="polite">Hello! Loading your health records...</div>
     </section>
 
     <!-- Screen C: Reminder & Winding History Path -->
-    <section id="reminder-path-section" aria-label="History Path and Next Test Reminder" style="display: none;">
+    <section id="reminder-path-section" aria-label="History Path and Next Test Reminder" data-i18n-aria="app.pathAria" style="display: none;">
       <!-- Populated dynamically by app.js -->
     </section>
 
     <!-- Screen D: Add a Report -->
-    <section id="upload-section" class="card upload-card" aria-label="Upload New Lab Report">
-      <h2 style="font-size: 1.15rem; font-weight: 800;">Add a Report</h2>
+    <section id="upload-section" class="card upload-card" aria-label="Upload New Lab Report" data-i18n-aria="upload.aria">
+      <h2 style="font-size: 1.15rem; font-weight: 800;" data-i18n="upload.title">Add a Report</h2>
       
       <div class="upload-actions-grid">
-        <button type="button" id="take-photo-btn" class="btn btn-primary">
-          📷 Take photo
-        </button>
-        <button type="button" id="choose-gallery-btn" class="btn btn-secondary">
-          🖼️ From gallery
-        </button>
+        <button type="button" id="take-photo-btn" class="btn btn-primary" data-i18n="upload.take">📷 Take photo</button>
+        <button type="button" id="choose-gallery-btn" class="btn btn-secondary" data-i18n="upload.gallery">🖼️ From gallery</button>
       </div>
 
       <!-- Hidden file inputs -->
@@ -97,68 +87,56 @@
 
       <!-- Photo Preview Box -->
       <div id="photo-preview-container" class="photo-preview-box" style="display: none;">
-        <img id="photo-preview" src="" alt="Selected lab report preview">
+        <img id="photo-preview" src="" alt="Selected lab report preview" data-i18n-alt="upload.previewAlt">
       </div>
 
       <!-- Collapsible Date Option -->
       <details class="collapsible-details">
-        <summary>Date not printed clearly?</summary>
+        <summary data-i18n="upload.dateToggle">Date not printed clearly?</summary>
         <div class="collapsible-content">
-          <label for="custom-report-date" style="font-weight: 600; font-size: 0.85rem;">Report Date (Optional)</label>
+          <label for="custom-report-date" style="font-weight: 600; font-size: 0.85rem;" data-i18n="upload.dateLabel">Report Date (Optional)</label>
           <input type="date" id="custom-report-date" class="date-input">
         </div>
       </details>
 
-      <button type="button" id="read-report-btn" class="btn btn-primary" disabled style="width: 100%;">
-        Read report
-      </button>
+      <button type="button" id="read-report-btn" class="btn btn-primary" disabled style="width: 100%;" data-i18n="upload.read">Read report</button>
 
       <!-- Status indicator with role="status" and aria-live="polite" -->
       <div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
     </section>
 
     <!-- Screen E: Trend Cards -->
-    <section id="trends-section" aria-label="Lab Test Trends">
+    <section id="trends-section" aria-label="Lab Test Trends" data-i18n-aria="trends.aria">
       <div id="trends-container" class="trends-list">
         <!-- Populated dynamically by app.js -->
       </div>
     </section>
 
     <!-- Screen G: Chat Panel ("Ask about these results") -->
-    <section id="chat-section" class="card chat-card" aria-label="Ask questions about lab results">
-      <h2 class="chat-header-title">Ask about these results</h2>
+    <section id="chat-section" class="card chat-card" aria-label="Ask questions about lab results" data-i18n-aria="chat.aria">
+      <h2 class="chat-header-title" data-i18n="chat.title">Ask about these results</h2>
 
       <!-- Suggested Tap-to-Send Chips -->
-      <div class="chat-chips-container" role="group" aria-label="Quick questions">
-        <button type="button" class="chip-btn" data-prompt="Is anything getting worse?">
-          Is anything getting worse?
-        </button>
-        <button type="button" class="chip-btn" data-prompt="What should I ask the doctor?">
-          What should I ask the doctor?
-        </button>
-        <button type="button" class="chip-btn" data-prompt="Explain HbA1c simply.">
-          Explain HbA1c simply.
-        </button>
+      <div class="chat-chips-container" role="group" aria-label="Quick questions" data-i18n-aria="chat.quickAria">
+        <button type="button" class="chip-btn" data-i18n="chat.q1">Is anything getting worse?</button>
+        <button type="button" class="chip-btn" data-i18n="chat.q2">What should I ask the doctor?</button>
+        <button type="button" class="chip-btn" data-i18n="chat.q3">Explain HbA1c simply.</button>
       </div>
 
       <!-- Chat Bubble History -->
       <div id="chat-messages" class="chat-messages" role="log" aria-live="polite">
-        <div class="chat-bubble mascot-reply-bubble">
-          Ask me any question about these lab tests.
-        </div>
+        <div class="chat-bubble mascot-reply-bubble" data-i18n="chat.welcome">Ask me any question about these lab tests.</div>
       </div>
 
       <!-- Chat Input Form -->
       <form id="chat-form" class="chat-input-form">
         <div class="chat-input-row">
-          <label for="chat-input" class="visually-hidden" style="display:none;">Type a question</label>
-          <input type="text" id="chat-input" class="chat-text-input" maxlength="500" placeholder="Ask about your numbers..." aria-label="Type your health question" required autocomplete="off">
-          <button type="submit" id="chat-send-btn" class="btn btn-primary btn-sm">
-            Send
-          </button>
+          <label for="chat-input" class="visually-hidden" style="display:none;" data-i18n="chat.label">Type a question</label>
+          <input type="text" id="chat-input" class="chat-text-input" maxlength="500" placeholder="Ask about your numbers..." data-i18n-placeholder="chat.placeholder" aria-label="Type your health question" data-i18n-aria="chat.inputAria" required autocomplete="off">
+          <button type="submit" id="chat-send-btn" class="btn btn-primary btn-sm" data-i18n="chat.send">Send</button>
         </div>
         <div class="chat-meta-row">
-          <span>Answers come only from these reports. Baseline doesn't diagnose.</span>
+          <span data-i18n="chat.note">Answers come only from these reports. Baseline doesn't diagnose.</span>
           <span id="chat-char-counter">0/500</span>
         </div>
       </form>
@@ -168,12 +146,12 @@
   <!-- Screen B Modal: Add Person Dialog -->
   <div id="add-person-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="add-person-title">
     <div class="modal-sheet" style="max-width: 400px;">
-      <h2 id="add-person-title" style="font-size: 1.2rem; font-weight: 800;">Add Family Member</h2>
+      <h2 id="add-person-title" style="font-size: 1.2rem; font-weight: 800;" data-i18n="person.modalTitle">Add Family Member</h2>
       <form id="add-person-form" style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
         <div>
-          <label for="new-person-title" style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;">Title</label>
+          <label for="new-person-title" style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;" data-i18n="person.title">Title</label>
           <select id="new-person-title" class="app-select">
-            <option value="">(None)</option>
+            <option value="" data-i18n="person.none">(None)</option>
             <option value="Mr">Mr</option>
             <option value="Ms">Ms</option>
             <option value="Mrs">Mrs</option>
@@ -184,20 +162,20 @@
         </div>
 
         <div>
-          <label for="new-person-name" style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;">Full Name</label>
-          <input type="text" id="new-person-name" class="date-input" style="width: 100%;" required maxlength="40" placeholder="e.g. Sunita Rao">
+          <label for="new-person-name" style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;" data-i18n="person.name">Full Name</label>
+          <input type="text" id="new-person-name" class="date-input" style="width: 100%;" required maxlength="40" placeholder="e.g. Sunita Rao" data-i18n-placeholder="person.namePh">
         </div>
 
         <div id="self-checkbox-container" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
           <input type="checkbox" id="new-person-self" style="width: 20px; height: 20px; accent-color: var(--accent);">
-          <label for="new-person-self" style="font-weight: 700; font-size: 0.9rem; cursor: pointer;">This is me</label>
+          <label for="new-person-self" style="font-weight: 700; font-size: 0.9rem; cursor: pointer;" data-i18n="person.isMe">This is me</label>
         </div>
 
         <div id="add-person-error" style="color: var(--danger); font-size: 0.85rem; font-weight: 700; min-height: 18px;" role="alert"></div>
 
         <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
-          <button type="button" id="close-add-person-btn" class="btn btn-secondary btn-sm">Cancel</button>
-          <button type="submit" class="btn btn-primary btn-sm">Save Person</button>
+          <button type="button" id="close-add-person-btn" class="btn btn-secondary btn-sm" data-i18n="person.cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm" data-i18n="person.save">Save Person</button>
         </div>
       </form>
     </div>
@@ -214,22 +192,19 @@
   <div id="celebration-modal" class="celebration-overlay" role="status" aria-live="assertive">
     <div class="celebration-card">
       <div class="celebration-emoji">🎉</div>
-      <h3 class="celebration-title">Report Added!</h3>
-      <p class="celebration-subtitle">Baseline recorded results into history.</p>
+      <h3 class="celebration-title" data-i18n="celebrate.title">Report Added!</h3>
+      <p class="celebration-subtitle" data-i18n="celebrate.text">Baseline recorded results into history.</p>
     </div>
   </div>
 
   <!-- Medical Disclaimer Footer (Mandatory across all screens) -->
   <footer class="app-footer" role="contentinfo">
-    <p class="footer-disclaimer">
-      Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.
-    </p>
-    <p class="footer-meta">
-      Made for the AWS student hackathon
-    </p>
+    <p class="footer-disclaimer" data-i18n="common.boundary">Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.</p>
+    <p class="footer-meta" data-i18n="common.madeFor">Made for the AWS student hackathon</p>
   </footer>
 
   <!-- Core JavaScript Modules in Order -->
+  <script src="i18n.js"></script>
   <script src="config.js"></script>
   <script src="mock.js"></script>
   <script src="api.js"></script>
