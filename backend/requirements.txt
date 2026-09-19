@@ -1,0 +1,6 @@
+# What the API needs to run (locally and on Lambda).
+fastapi==0.141.1
+mangum==0.22.0
+python-multipart==0.0.32
+boto3==1.43.98
+strands-agents==1.56.0

@@ -1,0 +1,7 @@
+# Everything above, plus what the tests and local server need.
+-r requirements.txt
+uvicorn==0.53.0
+pytest==9.1.1
+httpx==0.28.1
+httpx2==2.13.0
+moto[s3,dynamodb]==5.2.3
