@@ -42,3 +42,12 @@ def test_low_and_unknown_ranges_are_flagged_correctly():
     ])
 
     assert [r["flag"] for t in view["tests"] for r in t["results"]] == ["L", ""]
+
+
+def test_order_follows_the_printed_name_not_the_internal_key():
+    view = doctor_view("amma", [
+        reading("a-key", "Zinc", 90, "2026-09-12", "ug/dL", 60, 120),
+        reading("z-key", "Albumin", 4.2, "2026-09-12", "g/dL", 3.5, 5.2),
+    ])
+
+    assert [t["test_name"] for t in view["tests"]] == ["Albumin", "Zinc"]
