@@ -73,7 +73,8 @@ def save_readings(table, person_id: str, readings: list[Reading], report_id: str
 
 def _query_all(table, partition: str) -> list[dict]:
     """Every item in one partition. DynamoDB answers in pages, so keep asking until it's done."""
-    query = {"KeyConditionExpression": Key("personId").eq(partition)}
+    # Consistent reads: right after a save, the new rows must already be visible.
+    query = {"KeyConditionExpression": Key("personId").eq(partition), "ConsistentRead": True}
     items = []
     while True:
         page = table.query(**query)
@@ -128,7 +129,7 @@ def load_reports(table, person_id: str) -> list[Report]:
 
 
 def load_report(table, person_id: str, report_id: str) -> Report | None:
-    item = table.get_item(Key={"personId": person_id, "sk": REPORT_PREFIX + report_id}).get("Item")
+    item = table.get_item(Key={"personId": person_id, "sk": REPORT_PREFIX + report_id}, ConsistentRead=True).get("Item")
     return _report_from_item(item) if item else None
 
 
@@ -160,7 +161,7 @@ def save_account(table, account: Account) -> None:
 
 
 def load_account(table, email: str) -> Account | None:
-    item = table.get_item(Key={"personId": ACCOUNTS_PARTITION, "sk": email}).get("Item")
+    item = table.get_item(Key={"personId": ACCOUNTS_PARTITION, "sk": email}, ConsistentRead=True).get("Item")
     return Account(item["sk"], item["password_hash"], item.get("username", "")) if item else None
 
 
@@ -170,7 +171,7 @@ def save_session(table, session: Session) -> None:
 
 
 def load_session(table, token_hash: str) -> Session | None:
-    item = table.get_item(Key={"personId": SESSIONS_PARTITION, "sk": token_hash}).get("Item")
+    item = table.get_item(Key={"personId": SESSIONS_PARTITION, "sk": token_hash}, ConsistentRead=True).get("Item")
     return Session(item["sk"], item["email"], item["expires_at"]) if item else None
 
 

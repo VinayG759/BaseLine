@@ -143,6 +143,13 @@ def create_app(
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
                        allow_headers=["*"])
 
+    @app.middleware("http")
+    async def no_store(request: Request, call_next):
+        """Health data: browsers must never keep a copy of an API answer (and never show a stale one)."""
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException):
         return JSONResponse(status_code=exc.status_code, content={"error": str(exc.detail)})

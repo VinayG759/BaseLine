@@ -230,3 +230,31 @@ def test_a_summary_in_another_language_is_added_to_the_cache(table):
     update_report_summary(table, "sunita", "r1", "kn", "ಎಲ್ಲವೂ ಸರಿಯಾಗಿದೆ.")
 
     assert load_report(table, "sunita", "r1").summaries == {"en": "All good.", "kn": "ಎಲ್ಲವೂ ಸರಿಯಾಗಿದೆ."}
+
+
+class RecordingTable:
+    """Records how DynamoDB is asked, to check every read asks for the latest data."""
+
+    def __init__(self):
+        self.calls = []
+
+    def query(self, **kwargs):
+        self.calls.append(("query", kwargs))
+        return {"Items": []}
+
+    def get_item(self, **kwargs):
+        self.calls.append(("get_item", kwargs))
+        return {}
+
+
+def test_every_read_is_consistent_so_a_new_report_shows_up_at_once():
+    table = RecordingTable()
+
+    load_readings(table, "sunita")
+    load_reports(table, "sunita")
+    load_report(table, "sunita", "r1")
+    load_people(table, "vinay@example.com")
+    load_account(table, "vinay@example.com")
+    load_session(table, "abc")
+
+    assert table.calls and all(kwargs.get("ConsistentRead") is True for _, kwargs in table.calls)

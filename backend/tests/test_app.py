@@ -804,3 +804,9 @@ def test_reports_of_another_account_cannot_be_opened(backend):
 
 def test_an_unknown_report_is_404(client):
     assert client.get("/api/reports/nope", params={"person_id": "amma"}).status_code == 404
+
+
+def test_api_answers_are_never_stored_by_browsers(client):
+    r = client.get("/api/people")
+
+    assert r.headers["cache-control"] == "no-store"
