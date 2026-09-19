@@ -29,7 +29,8 @@ Rules:
 - Never diagnose, never name a disease, never suggest treatment, medicine, supplements or diet.
 - If a result is above or below its normal range, say it is worth discussing with a doctor.
 - If the reports don't answer the question, say so plainly and suggest asking a doctor.
-- Reply in {language}, in at most 80 words, warm and plain."""
+- Reply in {language}, in at most 80 words, warm and plain.
+- Plain sentences only: no lists, headings, bold or other markdown."""
 
 
 def make_tools(readings: list[Reading], seen: list[str]) -> list:

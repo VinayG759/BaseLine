@@ -8,7 +8,7 @@ AI slots (read_report, phrase, chat). Settings (environment variables):
     MODEL_PROVIDER                 "bedrock" (default) or "openrouter"
     MODEL_ID                       with bedrock
     OPENROUTER_API_KEY             with openrouter
-    OPENROUTER_MODEL               optional, default google/gemini-3.8-flash
+    OPENROUTER_MODEL               optional, default google/gemini-3.5-flash-lite
 """
 import os
 from dataclasses import dataclass
@@ -45,7 +45,7 @@ def _setting(name: str) -> str:
 
 
 PROVIDERS = ("bedrock", "openrouter")
-DEFAULT_OPENROUTER_MODEL = "google/gemini-3.8-flash"
+DEFAULT_OPENROUTER_MODEL = "google/gemini-3.5-flash-lite"   # as accurate as 3.8 Flash on our test report, 2-6x faster
 
 
 def _provider() -> str:

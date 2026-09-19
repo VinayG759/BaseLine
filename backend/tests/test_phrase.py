@@ -61,3 +61,8 @@ def test_a_reply_that_is_not_json_raises_so_the_templates_are_used():
 
 def test_every_supported_language_has_a_full_name():
     assert LANGUAGE_NAMES == {"en": "English", "kn": "Kannada", "hi": "Hindi"}
+
+
+def test_the_instructions_ask_for_the_printed_test_name():
+    assert "test name" in PROMPT.lower()
+    assert "never write the test_key" in PROMPT.lower()

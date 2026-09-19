@@ -99,7 +99,8 @@ def test_the_model_is_given_the_templates_and_the_language():
 
     summarise(two_trends(), "hi", phrase=phrase)
 
-    assert calls == [({"hba1c": HBA1C_TEMPLATE, "fastingbloodglucose": GLUCOSE_TEMPLATE}, "hi")]
+    assert calls == [({"hba1c": "HbA1c: " + HBA1C_TEMPLATE,
+                       "fastingbloodglucose": "Fasting Blood Glucose: " + GLUCOSE_TEMPLATE}, "hi")]
 
 
 def test_a_sentence_with_an_invented_number_is_replaced_by_the_template():

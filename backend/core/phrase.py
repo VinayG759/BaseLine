@@ -12,12 +12,15 @@ LANGUAGE_NAMES = {"en": "English", "kn": "Kannada", "hi": "Hindi"}
 
 PROMPT = """You rewrite lab-result facts for a family member with no medical training.
 
-You receive JSON: {"language": "...", "facts": {"<test_key>": "<one English fact sentence>"}}.
+You receive JSON: {"language": "...", "facts": {"<test_key>": "<test name>: <one English fact sentence>"}}.
 Return ONLY a JSON object mapping each test_key to one sentence, with no other text.
+Refer to each test by its test name (the text before the colon), written naturally in the sentence
+rather than as a "name:" label. Never write the test_key in a sentence.
 
 Rules for every sentence:
 - Write it in the requested language, warm and plain, at most 30 words.
 - Use only the facts given. Never add, change, round or convert a number.
+- Keep every number and range from the fact in your sentence, so a relative can match it against the printed report.
 - Write every number with ordinary digits 0-9, exactly as given.
 - Keep test names and units exactly as given, untranslated.
 - Never diagnose, never name a disease, never suggest treatment, medicine or diet.

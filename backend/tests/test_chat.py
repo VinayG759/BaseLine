@@ -123,3 +123,11 @@ def test_a_reply_with_numbers_but_no_tool_use_is_replaced():
     model = ScriptedModel({"text": "Your HbA1c is 6.4 %."})
 
     assert answer("How is HbA1c?", "en", READINGS, model) == FALLBACK
+
+
+def test_replies_are_asked_for_as_plain_sentences():
+    model = ScriptedModel({"text": "Hello."})
+
+    answer("Hi", "en", READINGS, model)
+
+    assert "no lists" in model.calls[0]["system"].lower()

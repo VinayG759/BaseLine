@@ -78,7 +78,7 @@ def test_openrouter_provider_reads_reports_through_openrouter(no_settings, monke
     result = aws_services().read_report(b"photo", "jpeg")
 
     assert result.readings[0].test_key == "hba1c"
-    assert fake.requests[0]["model"] == "google/gemini-3.8-flash"
+    assert fake.requests[0]["model"] == "google/gemini-3.5-flash-lite"
 
 
 def test_openrouter_model_can_be_changed_by_setting(no_settings, monkeypatch):
@@ -90,12 +90,12 @@ def test_openrouter_model_can_be_changed_by_setting(no_settings, monkeypatch):
     fake = FakeClient(json.dumps({"hba1c": "ok"}))
     monkeypatch.setenv("MODEL_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test")
-    monkeypatch.setenv("OPENROUTER_MODEL", "google/gemini-3.5-flash-lite")
+    monkeypatch.setenv("OPENROUTER_MODEL", "google/gemini-3.8-flash")
     monkeypatch.setattr(openrouter, "make_client", lambda key: fake)
 
     aws_services().phrase({"hba1c": "x"}, "kn")
 
-    assert fake.requests[0]["model"] == "google/gemini-3.5-flash-lite"
+    assert fake.requests[0]["model"] == "google/gemini-3.8-flash"
 
 
 def test_openrouter_without_a_key_names_the_missing_setting(no_settings, monkeypatch):

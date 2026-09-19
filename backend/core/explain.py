@@ -87,7 +87,8 @@ def summarise(
     if phrase is None or not templates or (lang == "en" and not reword_english):
         return templates
     try:
-        written = phrase(dict(templates), lang)
+        # Each fact carries its printed test name, so the model names the test, not our key.
+        written = phrase({key: f"{names[key]}: {template}" for key, template in templates.items()}, lang)
     except Exception:
         log.exception("rewording failed; sending English templates")
         return templates
