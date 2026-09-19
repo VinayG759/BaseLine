@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from mangum import Mangum
 
+from core.doctor import doctor_view
 from core.explain import summarise
 from core.extract import ExtractionError
 from core.services import Services, aws_services
@@ -103,6 +104,11 @@ def create_app(services: Services) -> FastAPI:
         person_id = _check_person(person_id)
         lang = _check_lang(lang)
         return build_response(person_id, lang, report=None, touched=set())
+
+    @app.get("/api/doctor")
+    def get_doctor_view(person_id: str | None = None):
+        person_id = _check_person(person_id)
+        return doctor_view(person_id, _call(services.load_readings, person_id))
 
     @app.post("/api/reports")
     async def post_report(

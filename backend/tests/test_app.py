@@ -226,3 +226,18 @@ def test_a_failing_service_still_answers_in_the_contract_shape_with_cors(backend
     assert r.status_code == 503
     assert set(r.json()) == {"error"}
     assert r.headers["access-control-allow-origin"] == "*"
+
+
+def test_doctor_view_lists_every_result_as_a_table(client):
+    upload(client, b"march")
+    upload(client, b"september")
+
+    r = client.get("/api/doctor", params={"person_id": "amma"})
+
+    assert r.status_code == 200
+    assert r.json()["report_dates"] == ["2026-03-04", "2026-09-12"]
+    assert [x["flag"] for x in r.json()["tests"][0]["results"]] == ["", "H"]
+
+
+def test_doctor_view_rejects_an_invalid_person(client):
+    assert client.get("/api/doctor", params={"person_id": "../etc"}).status_code == 400

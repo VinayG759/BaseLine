@@ -44,7 +44,8 @@ def _move(before: float, after: float) -> str:
     return "stable"
 
 
-def _status(value: float, ref_low: float | None, ref_high: float | None) -> str:
+def range_status(value: float, ref_low: float | None, ref_high: float | None) -> str:
+    """normal | high | low | unknown. A one-sided range only checks the side it has."""
     if ref_low is None and ref_high is None:
         return "unknown"
     if ref_low is not None and value < ref_low:
@@ -78,7 +79,7 @@ def compute_trend(readings: list[Reading]) -> Trend:
         previous=values[-2] if len(values) > 1 else None,
         direction=direction,
         streak=streak,
-        status=_status(newest.value, newest.ref_low, newest.ref_high),
+        status=range_status(newest.value, newest.ref_low, newest.ref_high),
         ref_low=newest.ref_low,
         ref_high=newest.ref_high,
         history=[{"date": r.taken_on, "value": r.value} for r in ordered],
