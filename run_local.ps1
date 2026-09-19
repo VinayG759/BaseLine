@@ -13,7 +13,7 @@ if (-not (Test-Path $envFile)) { Write-Error "backend\.env not found"; exit 1 }
 # Load KEY=VALUE lines from .env into this session (comments and blank lines skipped; values never printed).
 foreach ($line in Get-Content $envFile) {
   if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$') {
-    Set-Item -Path "Env:$($Matches[1])" -Value $Matches[2]
+    Set-Item -Path "Env:$($Matches[1])" -Value $Matches[2].Trim()   # a stray space would break the API key
   }
 }
 
