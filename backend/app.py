@@ -1,12 +1,13 @@
-"""The Baseline API: two endpoints, shaped exactly as CONTRACT.md describes.
+"""The Baseline API, shaped exactly as CONTRACT.md describes.
 
-The API never talks to AWS or a model directly. It calls four plug-in
-functions (Services), so the same API runs with Bedrock and DynamoDB, with
-local stand-ins, or with fakes in the tests.
+The API never talks to AWS or a model directly. It calls plug-in functions
+(Services), so the same API runs with AWS and a model provider, or with fakes
+in the tests.
 
 Run locally:  uvicorn app:app --reload --port 8000
 On Lambda:    handler "app.handler"
 """
+import json
 import logging
 import os
 import re
@@ -28,10 +29,13 @@ from core.auth import (Account, AuthError, EmailTaken, check_new_account, check_
 from core.doctor import doctor_view
 from core.explain import summarise
 from core.extract import ExtractionError
-from core.people import PersonError, SelfProfileExists, new_person, sort_people
+from core.names import check_report_name
+from core.overall import overall_summary, trends_as_of
+from core.people import PersonError, SelfProfileExists, check_height, check_weight, edit_person, new_person, sort_people
 from core.reminder import reminder
+from core.reports import Report, ReportError, check_reviewed
 from core.services import Services, aws_services
-from core.trends import compute_trend, group_by_test, sort_trends
+from core.trends import compute_trend, group_by_test, range_status, sort_trends
 
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
 PERSON_ID = re.compile(r"[a-z0-9-]{1,32}")
@@ -62,6 +66,27 @@ class NewPerson(BaseModel):
     title: str | None = None
     name: str | None = None
     is_self: bool = False
+    gender: str | None = None
+    age: int | str | None = None
+    height_cm: float | str | None = None
+    weight_kg: float | str | None = None
+
+
+class PersonChanges(BaseModel):
+    """Only the fields that are sent are changed."""
+    title: str | None = None
+    name: str | None = None
+    gender: str | None = None
+    age: int | str | None = None
+    height_cm: float | str | None = None
+    weight_kg: float | str | None = None
+
+
+class ReportEdit(BaseModel):
+    person_id: str | None = None
+    readings: list[dict] | None = None
+    report_date: str | None = None
+    lang: str | None = None
 
 
 class ChatRequest(BaseModel):
@@ -115,7 +140,8 @@ def create_app(
     app.state.now = now
     # Checked against when an email doesn't exist, so a wrong email takes as long as a wrong password.
     dummy_hash = hash_password("not a real password")
-    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+    app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+                       allow_headers=["*"])
 
     @app.exception_handler(HTTPException)
     async def http_error(_: Request, exc: HTTPException):
@@ -144,10 +170,80 @@ def create_app(
 
     def check_person(person_id: str | None, owner: str) -> str:
         """A valid ID that belongs to one of this account's people, or a 400/404 with a sentence."""
+        return find_person(person_id, owner).person_id
+
+    def find_person(person_id: str | None, owner: str):
         person_id = _check_person(person_id)
-        if person_id not in {p.person_id for p in _call(services.list_people, owner)}:
-            _fail(404, "This person isn’t in Baseline yet. Add them first.")
-        return person_id
+        for person in _call(services.list_people, owner):
+            if person.person_id == person_id:
+                return person
+        _fail(404, "This person isn’t in Baseline yet. Add them first.")
+
+    def find_report(person_id: str, report_id: str) -> Report:
+        report = _call(services.get_report, person_id, report_id)
+        if report is None:
+            _fail(404, "This report isn’t in Baseline.")
+        return report
+
+    def reading_rows(readings) -> list[dict]:
+        return [{"test_key": r.test_key, "test_name": r.test_name, "value": r.value, "unit": r.unit,
+                 "ref_low": r.ref_low, "ref_high": r.ref_high, "status": range_status(r.value, r.ref_low, r.ref_high)}
+                for r in readings]
+
+    def summary_for(person_id: str, report: Report, lang: str) -> str:
+        """The report's overall summary in `lang`: from the cache, or written once and cached."""
+        if lang in report.summaries:
+            return report.summaries[lang]
+        trends = trends_as_of(_call(services.load_readings, person_id), report.test_keys, report.report_date)
+        text = overall_summary(trends, lang, services.write_summary)
+        _call(services.update_report_summary, person_id, report.report_id, lang, text)
+        return text
+
+    def check_name_for_saving(person, owner: str, patient_name, name_confirmed: bool) -> None:
+        """Refuse to save a report printed with someone else's name (or no name, unless confirmed)."""
+        check = check_report_name(patient_name, person, _call(services.list_people, owner))
+        if check["status"] == "different":
+            _fail(409, f"This report is for {check['detected_name']}, not {person.display_name}. It was not saved.")
+        if check["status"] == "other_person":
+            _fail(409, f"This report looks like {check['display_name']}’s. Choose them and upload it again. "
+                       "It was not saved.")
+        if check["status"] == "unknown" and not name_confirmed:
+            _fail(409, f"No name was found on this report. Confirm it belongs to {person.display_name} to save it.")
+
+    def save_new_report(owner: str, person, readings, report_date: str, lab_name, patient_name,
+                        image: bytes, image_format: str, lang: str, height_cm=None, weight_kg=None) -> dict:
+        """Photo, readings, report record and summary; the profile's height/weight follow the latest report."""
+        readings = [replace(r, taken_on=report_date) for r in readings]
+        report_id = uuid.uuid4().hex
+        s3_key = _call(services.save_image, person.person_id, report_id, image, image_format)
+        _call(services.save_readings, person.person_id, readings, report_id, s3_key)
+        report = Report(report_id=report_id, report_date=report_date, lab_name=lab_name, patient_name=patient_name,
+                        s3_key=s3_key, uploaded_at=app.state.now().isoformat(), height_cm=height_cm,
+                        weight_kg=weight_kg, test_keys=[r.test_key for r in readings])
+        _call(services.save_report, person.person_id, report)
+        if height_cm is not None or weight_kg is not None:
+            changes = {k: v for k, v in (("height_cm", height_cm), ("weight_kg", weight_kg)) if v is not None}
+            _call(services.save_person, owner, edit_person(person, changes, today=today()))
+        summary = summary_for(person.person_id, report, lang)
+        return build_response(person.person_id, lang, {**report.as_dict(), "summary": summary},
+                              touched={r.test_key for r in readings})
+
+    async def read_image(file: UploadFile | None) -> tuple[bytes, str]:
+        if file is None:
+            _fail(400, "Choose a photo of the report to upload.")
+        image = await file.read()
+        if len(image) > MAX_IMAGE_BYTES:
+            _fail(413, "This photo is too large. Try a smaller photo, under 4 MB.")
+        image_format = IMAGE_FORMATS.get(file.content_type or "")
+        if image_format is None:
+            _fail(400, "Upload a JPEG or PNG photo of the report.")
+        return image, image_format
+
+    def extract_or_fail(image: bytes, image_format: str):
+        try:
+            return _call(services.read_report, image, image_format)
+        except ExtractionError as e:
+            _fail(422, str(e))
 
     def build_response(person_id: str, lang: str, report: dict | None, touched: set[str]) -> dict:
         readings = _call(services.load_readings, person_id)
@@ -196,19 +292,30 @@ def create_app(
 
     @app.get("/api/people")
     def get_people(owner: str = Depends(current_owner)):
-        return {"people": [p.as_dict() for p in sort_people(_call(services.list_people, owner))]}
+        return {"people": [p.as_dict(today()) for p in sort_people(_call(services.list_people, owner))]}
 
     @app.post("/api/people", status_code=201)
     def post_person(body: NewPerson, owner: str = Depends(current_owner)):
         existing = _call(services.list_people, owner)
         try:
-            person = new_person(body.title or "", body.name or "", body.is_self, existing)
+            person = new_person(body.title or "", body.name or "", body.is_self, existing, gender=body.gender,
+                                age=body.age, today=today(), height_cm=body.height_cm, weight_kg=body.weight_kg)
         except SelfProfileExists as e:
             _fail(409, str(e))
         except PersonError as e:
             _fail(400, str(e))
         _call(services.save_person, owner, person)
-        return person.as_dict()
+        return person.as_dict(today())
+
+    @app.patch("/api/people/{person_id}")
+    def patch_person(person_id: str, body: PersonChanges, owner: str = Depends(current_owner)):
+        person = find_person(person_id, owner)
+        try:
+            edited = edit_person(person, body.model_dump(exclude_unset=True), today=today())
+        except PersonError as e:
+            _fail(400, str(e))
+        _call(services.save_person, owner, edited)
+        return edited.as_dict(today())
 
     @app.get("/api/trends")
     def get_trends(person_id: str | None = None, lang: str | None = None, owner: str = Depends(current_owner)):
@@ -243,38 +350,132 @@ def create_app(
         lang: str | None = Form(None),
         owner: str = Depends(current_owner),
     ):
-        person_id = check_person(person_id, owner)
+        """One step: read and save (no review). Still refuses a report printed with someone else's name."""
+        person = find_person(person_id, owner)
         lang = _check_lang(lang)
         if report_date and not _is_iso_date(report_date):
             _fail(400, "Enter the report date as a calendar date.")
-        if file is None:
-            _fail(400, "Choose a photo of the report to upload.")
-
-        image = await file.read()
-        if len(image) > MAX_IMAGE_BYTES:
-            _fail(413, "This photo is too large. Try a smaller photo, under 4 MB.")
-        image_format = IMAGE_FORMATS.get(file.content_type or "")
-        if image_format is None:
-            _fail(400, "Upload a JPEG or PNG photo of the report.")
-
-        try:
-            extracted = _call(services.read_report, image, image_format)
-        except ExtractionError as e:
-            _fail(422, str(e))
+        image, image_format = await read_image(file)
+        extracted = extract_or_fail(image, image_format)
 
         taken_on = report_date or extracted.report_date
         if not taken_on:
             _fail(422, "Couldn’t read a date on this report. Enter the report date and upload again.")
         if not extracted.readings:
             _fail(422, "No test results were found on this report. Try a sharper, flatter photo.")
+        check_name_for_saving(person, owner, extracted.patient_name, name_confirmed=True)
+        return save_new_report(owner, person, extracted.readings, taken_on, extracted.lab_name,
+                               extracted.patient_name, image, image_format, lang)
 
-        readings = [replace(r, taken_on=taken_on) for r in extracted.readings]
-        report_id = uuid.uuid4().hex
-        s3_key = _call(services.save_image, person_id, report_id, image, image_format)
-        _call(services.save_readings, person_id, readings, report_id, s3_key)
+    @app.post("/api/reports/preview")
+    async def preview_report(
+        person_id: str | None = Form(None),
+        file: UploadFile | None = File(None),
+        report_date: str | None = Form(None),
+        lang: str | None = Form(None),
+        owner: str = Depends(current_owner),
+    ):
+        """Step 1: read the photo and check the name. Nothing is saved."""
+        person = find_person(person_id, owner)
+        lang = _check_lang(lang)
+        if report_date and not _is_iso_date(report_date):
+            _fail(400, "Enter the report date as a calendar date.")
+        image, image_format = await read_image(file)
+        extracted = extract_or_fail(image, image_format)
+        if not extracted.readings:
+            _fail(422, "No test results were found on this report. Try a sharper, flatter photo.")
 
-        report = {"report_id": report_id, "report_date": taken_on, "lab_name": extracted.lab_name}
-        return build_response(person_id, lang, report, touched={r.test_key for r in readings})
+        name_check = check_report_name(extracted.patient_name, person, _call(services.list_people, owner))
+        taken_on = report_date or extracted.report_date
+        body = {"person_id": person.person_id, "name_check": name_check, "report_date": taken_on,
+                "lab_name": extracted.lab_name, "patient_name": extracted.patient_name,
+                "readings": reading_rows(extracted.readings), "saved": False}
+        if name_check["status"] == "different":
+            # Helping someone else: show what their report says, keep nothing.
+            stamped = [replace(r, taken_on=taken_on or today().isoformat()) for r in extracted.readings]
+            trends = sort_trends([compute_trend(g) for g in group_by_test(stamped)])
+            sentences = summarise(trends, lang, services.phrase, reword_english)
+            body["analysis"] = {
+                "trends": [{**asdict(t), "summary": sentences[t.test_key], "updated": False} for t in trends],
+                "summary": overall_summary(trends, lang, services.write_summary),
+            }
+        return body
+
+    @app.post("/api/reports/confirm")
+    async def confirm_report(
+        person_id: str | None = Form(None),
+        file: UploadFile | None = File(None),
+        payload: str | None = Form(None),
+        owner: str = Depends(current_owner),
+    ):
+        """Step 2: save the values the person reviewed (and maybe corrected), with the photo."""
+        person = find_person(person_id, owner)
+        try:
+            data = json.loads(payload or "{}")
+        except json.JSONDecodeError:
+            _fail(400, "Something in the request was missing or malformed.")
+        if not isinstance(data, dict):
+            _fail(400, "Something in the request was missing or malformed.")
+        lang = _check_lang(data.get("lang"))
+        report_date = data.get("report_date") or ""
+        if not _is_iso_date(report_date):
+            _fail(400, "Enter the report date as a calendar date.")
+        try:
+            readings = check_reviewed(data.get("readings") or [])
+            height_cm, weight_kg = check_height(data.get("height_cm")), check_weight(data.get("weight_kg"))
+        except (ReportError, PersonError) as e:
+            _fail(400, str(e))
+        image, image_format = await read_image(file)
+        check_name_for_saving(person, owner, data.get("patient_name"), bool(data.get("name_confirmed")))
+        return save_new_report(owner, person, readings, report_date, data.get("lab_name"), data.get("patient_name"),
+                               image, image_format, lang, height_cm, weight_kg)
+
+    @app.get("/api/reports")
+    def list_reports(person_id: str | None = None, owner: str = Depends(current_owner)):
+        person_id = check_person(person_id, owner)
+        return {"person_id": person_id, "reports": [r.as_dict() for r in _call(services.list_reports, person_id)]}
+
+    @app.get("/api/reports/{report_id}")
+    def report_detail(report_id: str, person_id: str | None = None, lang: str | None = None,
+                      owner: str = Depends(current_owner)):
+        person_id = check_person(person_id, owner)
+        lang = _check_lang(lang)
+        report = find_report(person_id, report_id)
+        keys = set(report.test_keys)
+        readings = [r for r in _call(services.load_readings, person_id)
+                    if r.test_key in keys and r.taken_on == report.report_date]
+        photo = _call(services.image_url, report.s3_key) if report.s3_key else None   # seeded reports have none
+        return {**report.as_dict(), "image_url": photo,
+                "readings": reading_rows(sorted(readings, key=lambda r: r.test_name.lower())),
+                "summary": summary_for(person_id, report, lang)}
+
+    @app.put("/api/reports/{report_id}")
+    def edit_report(report_id: str, body: ReportEdit, owner: str = Depends(current_owner)):
+        """Replace a saved report's values (and date). The photo stays; summaries are written afresh."""
+        person_id = check_person(body.person_id, owner)
+        lang = _check_lang(body.lang)
+        report = find_report(person_id, report_id)
+        report_date = body.report_date or report.report_date
+        if not _is_iso_date(report_date):
+            _fail(400, "Enter the report date as a calendar date.")
+        try:
+            readings = [replace(r, taken_on=report_date) for r in check_reviewed(body.readings or [])]
+        except ReportError as e:
+            _fail(400, str(e))
+        _call(services.delete_report, person_id, report_id)
+        _call(services.save_readings, person_id, readings, report_id, report.s3_key)
+        edited = replace(report, report_date=report_date, test_keys=[r.test_key for r in readings], summaries={})
+        _call(services.save_report, person_id, edited)
+        return build_response(person_id, lang, {**edited.as_dict(), "summary": summary_for(person_id, edited, lang)},
+                              touched={r.test_key for r in readings})
+
+    @app.delete("/api/reports/{report_id}")
+    def remove_report(report_id: str, person_id: str | None = None, owner: str = Depends(current_owner)):
+        person_id = check_person(person_id, owner)
+        report = find_report(person_id, report_id)
+        _call(services.delete_report, person_id, report_id)
+        _call(services.delete_image, report.s3_key)
+        return {"ok": True}
 
     return app
 

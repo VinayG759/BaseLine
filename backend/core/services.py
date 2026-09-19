@@ -23,6 +23,8 @@ from core.auth import Account, Session
 from core.extract import Extracted, extract
 from core.people import Person
 from core.phrase import phrase as bedrock_phrase
+from core.phrase import write_summary as bedrock_write_summary
+from core.reports import Report
 from core.trends import Reading
 
 
@@ -39,6 +41,14 @@ class Services:
     save_session: Callable[[Session], None]
     load_session: Callable[[str], Session | None]                  # token hash
     delete_session: Callable[[str], None]                          # token hash
+    save_report: Callable[[str, Report], None]                     # person, report
+    list_reports: Callable[[str], list[Report]]                    # person -> newest first
+    get_report: Callable[[str, str], Report | None]                # person, report id
+    update_report_summary: Callable[[str, str, str, str], None]    # person, report id, lang, text
+    delete_report: Callable[[str, str], None]                      # person, report id (record + its readings)
+    image_url: Callable[[str], str]                                # photo key -> short-lived link
+    delete_image: Callable[[str], None]                            # photo key
+    write_summary: Callable[[list[str], str], str] | None = None           # facts, lang -> report summary
     phrase: Callable[[dict[str, str], str], dict[str, str]] | None = None  # templates, lang -> sentences
     chat: Callable[[str, str, list[Reading]], str] | None = None            # question, lang, readings -> reply
 
@@ -119,6 +129,32 @@ def aws_services() -> Services:
     def delete_session(token_hash):
         store.delete_session(table(), token_hash)
 
+    def save_report(person_id, report):
+        store.save_report(table(), person_id, report)
+
+    def list_reports(person_id):
+        return store.load_reports(table(), person_id)
+
+    def get_report(person_id, report_id):
+        return store.load_report(table(), person_id, report_id)
+
+    def update_report_summary(person_id, report_id, lang, text):
+        store.update_report_summary(table(), person_id, report_id, lang, text)
+
+    def delete_report(person_id, report_id):
+        store.delete_report(table(), person_id, report_id)
+
+    def image_url(key):
+        return store.image_url(s3(), _setting("BUCKET"), key)
+
+    def delete_image(key):
+        store.delete_image(s3(), _setting("BUCKET"), key)
+
+    def write_summary(facts, lang):
+        if _provider() == "openrouter":
+            return openrouter.write_summary(facts, lang, _openrouter_model(), openrouter_client())
+        return bedrock_write_summary(facts, lang, _setting("MODEL_ID"), bedrock())
+
     def phrase(templates, lang):
         if _provider() == "openrouter":
             return openrouter.phrase(templates, lang, _openrouter_model(), openrouter_client())
@@ -132,5 +168,11 @@ def aws_services() -> Services:
             model = BedrockModel(model_id=_setting("MODEL_ID"), region_name=_setting("AWS_REGION"), temperature=0)
         return answer(question, lang, readings, model)
 
-    return Services(read_report, save_image, save_readings, load_readings, list_people, save_person,
-                    save_account, load_account, save_session, load_session, delete_session, phrase, chat)
+    return Services(
+        read_report=read_report, save_image=save_image, save_readings=save_readings, load_readings=load_readings,
+        list_people=list_people, save_person=save_person, save_account=save_account, load_account=load_account,
+        save_session=save_session, load_session=load_session, delete_session=delete_session,
+        save_report=save_report, list_reports=list_reports, get_report=get_report,
+        update_report_summary=update_report_summary, delete_report=delete_report, image_url=image_url,
+        delete_image=delete_image, write_summary=write_summary, phrase=phrase, chat=chat,
+    )

@@ -68,3 +68,17 @@ def test_chat_model_points_strands_at_openrouter_at_temperature_zero():
     assert model.get_config()["model_id"] == MODEL
     assert model.get_config()["params"] == {"temperature": 0}
     assert model.client_args == {"api_key": "sk-or-test", "base_url": BASE_URL}
+
+
+def test_report_summary_sends_the_facts_and_returns_plain_text():
+    from core.openrouter import write_summary
+    from core.phrase import SUMMARY_PROMPT
+    client = FakeClient("HbA1c keeps going up. Worth discussing with a doctor.")
+
+    text = write_summary(["This report has 3 results."], "hi", MODEL, client)
+
+    assert text == "HbA1c keeps going up. Worth discussing with a doctor."
+    system, user = client.requests[0]["messages"]
+    assert system == {"role": "system", "content": SUMMARY_PROMPT}
+    assert json.loads(user["content"]) == {"language": "Hindi", "facts": ["This report has 3 results."]}
+    assert client.requests[0]["temperature"] == 0

@@ -43,3 +43,15 @@ def test_reset_removes_a_live_upload_and_restores_the_seed(configured_aws):
 
     dates = {r.taken_on for r in services.load_readings(sunita.person_id)}
     assert dates == {"2026-03-04", "2026-08-08"}
+
+
+def test_seeded_reports_appear_in_history_without_photos(configured_aws):
+    services = aws_services()
+    seed_demo.seed(services, OWNER)
+    sunita = next(p for p in services.list_people(OWNER) if p.name == "Sunita Rao")
+
+    reports = services.list_reports(sunita.person_id)
+
+    assert [r.report_date for r in reports] == ["2026-08-08", "2026-03-04"]
+    assert all(r.s3_key == "" and len(r.test_keys) == 5 for r in reports)
+    assert (sunita.gender, sunita.age) == ("female", 54)

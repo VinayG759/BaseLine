@@ -10,12 +10,16 @@ from boto3.dynamodb.conditions import Key
 
 from core.auth import Account, Session
 from core.people import Person
+from core.reports import Report
 from core.trends import Reading
 
 CONTENT_TYPES = {"jpeg": "image/jpeg", "png": "image/png"}
 # Reserved partitions start with "#", which can't appear in a person ID, so they never collide with readings.
 ACCOUNTS_PARTITION = "#accounts"
 SESSIONS_PARTITION = "#sessions"
+
+
+REPORT_PREFIX = "~report#"   # "~" never appears in a test key, so report records can't collide with readings
 
 
 def people_partition(owner: str) -> str:
@@ -80,17 +84,74 @@ def _query_all(table, partition: str) -> list[dict]:
 
 
 def load_readings(table, person_id: str) -> list[Reading]:
-    return [from_item(item) for item in _query_all(table, person_id)]
+    return [from_item(item) for item in _query_all(table, person_id) if not item["sk"].startswith(REPORT_PREFIX)]
 
 
 def save_person(table, owner: str, person: Person) -> None:
     table.put_item(Item={"personId": people_partition(owner), "sk": person.person_id,
-                         "title": person.title, "name": person.name, "is_self": person.is_self})
+                         "title": person.title, "name": person.name, "is_self": person.is_self,
+                         "gender": person.gender, "age": person.age, "age_recorded_on": person.age_recorded_on,
+                         "height_cm": _to_decimal(person.height_cm), "weight_kg": _to_decimal(person.weight_kg)})
 
 
 def load_people(table, owner: str) -> list[Person]:
-    return [Person(item["sk"], item["title"], item["name"], item["is_self"])
+    return [Person(item["sk"], item["title"], item["name"], item["is_self"], item.get("gender", ""),
+                   int(item["age"]) if item.get("age") is not None else None, item.get("age_recorded_on", ""),
+                   _to_float(item.get("height_cm")), _to_float(item.get("weight_kg")))
             for item in _query_all(table, people_partition(owner))]
+
+
+def _report_from_item(item: dict) -> Report:
+    return Report(
+        report_id=item["sk"][len(REPORT_PREFIX):], report_date=item["report_date"], lab_name=item.get("lab_name"),
+        patient_name=item.get("patient_name"), s3_key=item["s3Key"], uploaded_at=item["uploaded_at"],
+        height_cm=_to_float(item.get("height_cm")), weight_kg=_to_float(item.get("weight_kg")),
+        test_keys=list(item.get("test_keys", [])), summaries=dict(item.get("summaries", {})),
+    )
+
+
+def save_report(table, person_id: str, report: Report) -> None:
+    table.put_item(Item={
+        "personId": person_id, "sk": REPORT_PREFIX + report.report_id, "report_date": report.report_date,
+        "lab_name": report.lab_name, "patient_name": report.patient_name, "s3Key": report.s3_key,
+        "uploaded_at": report.uploaded_at, "height_cm": _to_decimal(report.height_cm),
+        "weight_kg": _to_decimal(report.weight_kg), "test_keys": list(report.test_keys),
+        "summaries": dict(report.summaries),
+    })
+
+
+def load_reports(table, person_id: str) -> list[Report]:
+    """Newest report first."""
+    items = _query_all(table, person_id)
+    reports = [_report_from_item(i) for i in items if i["sk"].startswith(REPORT_PREFIX)]
+    return sorted(reports, key=lambda r: (r.report_date, r.uploaded_at), reverse=True)
+
+
+def load_report(table, person_id: str, report_id: str) -> Report | None:
+    item = table.get_item(Key={"personId": person_id, "sk": REPORT_PREFIX + report_id}).get("Item")
+    return _report_from_item(item) if item else None
+
+
+def update_report_summary(table, person_id: str, report_id: str, lang: str, text: str) -> None:
+    table.update_item(Key={"personId": person_id, "sk": REPORT_PREFIX + report_id},
+                      UpdateExpression="SET summaries.#lang = :text",
+                      ExpressionAttributeNames={"#lang": lang}, ExpressionAttributeValues={":text": text})
+
+
+def delete_report(table, person_id: str, report_id: str) -> None:
+    """The report record and every reading that came from it; other reports' readings stay."""
+    for item in _query_all(table, person_id):
+        if item["sk"] == REPORT_PREFIX + report_id or item.get("reportId") == report_id:
+            table.delete_item(Key={"personId": person_id, "sk": item["sk"]})
+
+
+def delete_image(s3, bucket: str, key: str) -> None:
+    s3.delete_object(Bucket=bucket, Key=key)
+
+
+def image_url(s3, bucket: str, key: str, seconds: int = 600) -> str:
+    """A short-lived link to the private photo, so the page can show it without making the bucket public."""
+    return s3.generate_presigned_url("get_object", Params={"Bucket": bucket, "Key": key}, ExpiresIn=seconds)
 
 
 def save_account(table, account: Account) -> None:

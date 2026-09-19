@@ -102,3 +102,20 @@ def test_extract_turns_a_non_report_reply_into_a_readable_error():
 
     with pytest.raises(ExtractionError):
         extract(b"photo", "jpeg", "us.amazon.nova-pro-v1:0", client)
+
+
+def test_the_printed_patient_name_is_kept_for_the_name_check():
+    reply = json.dumps({"report_date": "2026-09-12", "lab_name": "Lab", "patient_name": "Mrs Sunita Rao",
+                        "readings": [HBA1C_ROW]})
+
+    assert parse(reply).patient_name == "Mrs Sunita Rao"
+
+
+def test_a_missing_or_blank_patient_name_is_none():
+    assert parse(model_reply([HBA1C_ROW])).patient_name is None
+    assert parse(json.dumps({"patient_name": "  ", "readings": [HBA1C_ROW]})).patient_name is None
+
+
+def test_the_reading_instructions_ask_for_the_patient_name():
+    from core.extract import PROMPT
+    assert '"patient_name"' in PROMPT

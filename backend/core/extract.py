@@ -13,7 +13,7 @@ UNREADABLE = "This image couldn’t be read as a lab report. Try a sharper, flat
 
 PROMPT = """You are reading a photo of a printed medical lab report.
 Return ONLY a JSON object, with no other text, in exactly this shape:
-{"report_date": "YYYY-MM-DD or null", "lab_name": "string or null",
+{"report_date": "YYYY-MM-DD or null", "lab_name": "string or null", "patient_name": "string or null",
  "readings": [{"test_name": "...", "value": 0.0, "unit": "...", "ref_low": 0.0, "ref_high": 0.0}]}
 
 Rules:
@@ -24,6 +24,7 @@ Rules:
 - Skip any row whose result is not a number (for example "Negative" or "Pale yellow").
 - Ignore the "H" or "L" flags next to results; they are not part of the value.
 - report_date is the date the sample was collected or reported, as YYYY-MM-DD. Use null if you cannot read it.
+- patient_name is the patient's name exactly as printed (with any title). Use null if no name is printed.
 - If this is not a lab report, return {"report_date": null, "lab_name": null, "readings": []}."""
 
 
@@ -36,6 +37,7 @@ class Extracted:
     report_date: str | None
     lab_name: str | None
     readings: list[Reading]
+    patient_name: str | None = None
 
 
 def normalise(name: str) -> str:
@@ -92,9 +94,11 @@ def parse(text: str) -> Extracted:
     if not (isinstance(date, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", date)):
         date = None
     lab = data.get("lab_name")
+    patient = data.get("patient_name")
 
     return Extracted(report_date=date, lab_name=lab if isinstance(lab, str) and lab.strip() else None,
-                     readings=readings)
+                     readings=readings,
+                     patient_name=patient.strip() if isinstance(patient, str) and patient.strip() else None)
 
 
 def extract(image: bytes, image_format: str, model_id: str, client) -> Extracted:

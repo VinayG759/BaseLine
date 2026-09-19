@@ -7,9 +7,11 @@ from moto import mock_aws
 
 from core.people import Person
 from core.auth import Account, Session
-from core.store import (ACCOUNTS_PARTITION, SESSIONS_PARTITION, delete_session, from_item, load_account, load_people,
-                        load_readings, load_session, people_partition, save_account, save_image, save_person,
-                        save_readings, save_session, to_item)
+from core.reports import Report
+from core.store import (ACCOUNTS_PARTITION, SESSIONS_PARTITION, delete_report, delete_session, from_item,
+                        load_account, load_people, load_readings, load_report, load_reports, load_session,
+                        people_partition, save_account, save_image, save_person, save_readings, save_report,
+                        save_session, to_item, update_report_summary)
 from core.trends import Reading
 
 HBA1C = Reading("hba1c", "HbA1c", 6.4, "%", 4.0, 5.6, "2026-09-12")
@@ -166,3 +168,65 @@ def test_sessions_save_load_and_delete(table):
 
     delete_session(table, "abc123")
     assert load_session(table, "abc123") is None
+
+
+# ---- Richer profiles and report records ----
+
+def test_profile_fields_survive_the_round_trip(table):
+    sunita = Person("sunita-rao-4f2a", "Mrs", "Sunita Rao", False, "female", 54, "2026-09-19", 158.5, 61.0)
+
+    save_person(table, "vinay@example.com", sunita)
+
+    assert load_people(table, "vinay@example.com") == [sunita]
+
+
+def report(report_id="r1", date="2026-09-12", tests=("hba1c",)):
+    return Report(report_id=report_id, report_date=date, lab_name="Sri Sai Diagnostics",
+                  patient_name="Mrs Sunita Rao", s3_key=f"sunita/{report_id}.jpeg", uploaded_at="2026-09-19T10:00:00+00:00",
+                  height_cm=158.0, weight_kg=None, test_keys=list(tests), summaries={"en": "All good."})
+
+
+def test_reports_save_load_and_list_newest_first(table):
+    save_report(table, "sunita", report("r1", "2026-03-04"))
+    save_report(table, "sunita", report("r2", "2026-09-12"))
+
+    assert [r.report_id for r in load_reports(table, "sunita")] == ["r2", "r1"]
+    assert load_report(table, "sunita", "r1") == report("r1", "2026-03-04")
+    assert load_report(table, "sunita", "nope") is None
+
+
+def test_report_records_never_appear_as_readings(table):
+    save_readings(table, "sunita", [HBA1C], "r1", "k")
+    save_report(table, "sunita", report())
+
+    assert load_readings(table, "sunita") == [HBA1C]
+
+
+def test_a_test_named_report_cannot_collide_with_report_records(table):
+    odd = Reading("report", "Report", 1.0, "u", None, None, "2026-09-12")
+    save_readings(table, "sunita", [odd], "r1", "k")
+    save_report(table, "sunita", report())
+
+    assert load_readings(table, "sunita") == [odd]
+    assert [r.report_id for r in load_reports(table, "sunita")] == ["r1"]
+
+
+def test_deleting_a_report_removes_its_readings_and_record_only(table):
+    other = Reading("haemoglobin", "Haemoglobin", 13.8, "g/dL", 13.0, 17.0, "2026-03-04")
+    save_readings(table, "sunita", [HBA1C], "r1", "k1")
+    save_readings(table, "sunita", [other], "r2", "k2")
+    save_report(table, "sunita", report("r1"))
+    save_report(table, "sunita", report("r2", "2026-03-04"))
+
+    delete_report(table, "sunita", "r1")
+
+    assert load_readings(table, "sunita") == [other]
+    assert [r.report_id for r in load_reports(table, "sunita")] == ["r2"]
+
+
+def test_a_summary_in_another_language_is_added_to_the_cache(table):
+    save_report(table, "sunita", report())
+
+    update_report_summary(table, "sunita", "r1", "kn", "ಎಲ್ಲವೂ ಸರಿಯಾಗಿದೆ.")
+
+    assert load_report(table, "sunita", "r1").summaries == {"en": "All good.", "kn": "ಎಲ್ಲವೂ ಸರಿಯಾಗಿದೆ."}

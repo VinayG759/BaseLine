@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -20,11 +21,15 @@ REPORTS = {
     b"september": Extracted("2026-09-12", "Sri Sai Diagnostics", [hba1c(6.4)]),
     b"no-date": Extracted(None, None, [hba1c(6.4)]),
     b"no-rows": Extracted("2026-09-12", None, []),
+    b"sunita-named": Extracted("2026-09-12", "Sri Sai Diagnostics", [hba1c(6.4)], "Mrs. Sunita Rao"),
+    b"ramesh-named": Extracted("2026-09-12", "Sri Sai Diagnostics", [hba1c(6.4)], "Mr Ramesh Rao"),
+    b"stranger": Extracted("2026-09-12", "City Lab", [hba1c(7.2)], "Priya Nair"),
 }
 
 
 SLOTS = ("read_report", "save_image", "save_readings", "load_readings", "list_people", "save_person",
-         "save_account", "load_account", "save_session", "load_session", "delete_session")
+         "save_account", "load_account", "save_session", "load_session", "delete_session", "save_report",
+         "list_reports", "get_report", "update_report_summary", "delete_report", "image_url", "delete_image")
 OWNER = "vinay@example.com"
 PASSWORD = "correct horse battery"
 
@@ -37,6 +42,34 @@ class FakeBackend:
                                                         Person("appa", "Mr", "Ramesh Rao", False))}}
         self.accounts = {}
         self.sessions = {}
+        self.reports = {}    # person -> {report_id: Report}
+        self.row_report = {}  # (person, test_key, date) -> report id
+
+    def save_report(self, person_id, report):
+        self.reports.setdefault(person_id, {})[report.report_id] = report
+
+    def list_reports(self, person_id):
+        return sorted(self.reports.get(person_id, {}).values(), key=lambda r: (r.report_date, r.uploaded_at),
+                      reverse=True)
+
+    def get_report(self, person_id, report_id):
+        return self.reports.get(person_id, {}).get(report_id)
+
+    def update_report_summary(self, person_id, report_id, lang, text):
+        old = self.reports[person_id][report_id]
+        self.reports[person_id][report_id] = replace(old, summaries={**old.summaries, lang: text})
+
+    def delete_report(self, person_id, report_id):
+        self.reports.get(person_id, {}).pop(report_id, None)
+        for key in [k for k, rid in self.row_report.items() if k[0] == person_id and rid == report_id]:
+            self.rows.pop(key, None)
+            self.row_report.pop(key, None)
+
+    def image_url(self, key):
+        return f"https://img.example/{key}"
+
+    def delete_image(self, key):
+        self.images.pop(key, None)
 
     def list_people(self, owner):
         return list(self.people.get(owner, {}).values())
@@ -72,6 +105,7 @@ class FakeBackend:
     def save_readings(self, person_id, readings, report_id, s3_key):
         for r in readings:
             self.rows[(person_id, r.test_key, r.taken_on)] = r
+            self.row_report[(person_id, r.test_key, r.taken_on)] = report_id
 
     def load_readings(self, person_id):
         return [r for (p, _, _), r in self.rows.items() if p == person_id]
@@ -391,7 +425,7 @@ def test_chat_when_no_model_is_configured_answers_503(client):
 # ---- People ----
 
 def test_people_are_listed_yourself_first(client):
-    client.post("/api/people", json={"title": "Mr", "name": "Arjun Rao", "is_self": True})
+    client.post("/api/people", json={"title": "Mr", "name": "Arjun Rao", "is_self": True, "gender": "male", "age": 30})
 
     people = client.get("/api/people").json()["people"]
 
@@ -400,7 +434,8 @@ def test_people_are_listed_yourself_first(client):
 
 
 def test_adding_a_person_returns_them_and_their_reports_start_empty(client):
-    r = client.post("/api/people", json={"title": "Ms", "name": "Kavya Rao", "is_self": False})
+    r = client.post("/api/people", json={"title": "Ms", "name": "Kavya Rao", "is_self": False, "gender": "female",
+                                          "age": 25})
 
     assert r.status_code == 201
     person = r.json()
@@ -410,16 +445,16 @@ def test_adding_a_person_returns_them_and_their_reports_start_empty(client):
 
 
 def test_a_bad_name_is_rejected_with_a_sentence(client):
-    r = client.post("/api/people", json={"title": "Ms", "name": "R2D2"})
+    r = client.post("/api/people", json={"title": "Ms", "name": "R2D2", "gender": "female", "age": 25})
 
     assert r.status_code == 400
     assert "name" in r.json()["error"]
 
 
 def test_a_second_self_profile_is_a_conflict(client):
-    client.post("/api/people", json={"name": "Arjun Rao", "is_self": True})
+    client.post("/api/people", json={"name": "Arjun Rao", "is_self": True, "gender": "male", "age": 30})
 
-    r = client.post("/api/people", json={"name": "Someone Else", "is_self": True})
+    r = client.post("/api/people", json={"name": "Someone Else", "is_self": True, "gender": "male", "age": 30})
 
     assert r.status_code == 409
     assert "yourself" in r.json()["error"]
@@ -547,7 +582,7 @@ def test_people_i_add_belong_to_my_account(backend):
     mine = make_client(backend)
     theirs = log_in(TestClient(mine.app), email="chethan@example.com")
 
-    theirs.post("/api/people", json={"name": "Kavya Rao"})
+    theirs.post("/api/people", json={"name": "Kavya Rao", "gender": "female", "age": 25})
 
     assert [p["name"] for p in mine.get("/api/people").json()["people"]] == ["Ramesh Rao", "Sunita Rao"]
     assert [p["name"] for p in theirs.get("/api/people").json()["people"]] == ["Kavya Rao"]
@@ -568,3 +603,204 @@ def test_login_and_me_return_the_username(anonymous):
 
     assert login["username"] == "Vinay G"
     assert me == {"email": OWNER, "username": "Vinay G"}
+
+
+
+# ---- Profiles: gender, age, height, weight, editing ----
+
+def test_a_new_person_needs_gender_and_age(client):
+    r = client.post("/api/people", json={"title": "Ms", "name": "Kavya Rao"})
+
+    assert r.status_code == 400
+    assert "gender" in r.json()["error"]
+
+
+def test_people_carry_age_gender_height_and_weight(client):
+    r = client.post("/api/people", json={"title": "Ms", "name": "Kavya Rao", "gender": "female", "age": "25",
+                                         "height_cm": "160", "weight_kg": ""})
+
+    body = r.json()
+    assert (body["gender"], body["age"], body["height_cm"], body["weight_kg"]) == ("female", 25, 160.0, None)
+
+
+def test_editing_a_person_changes_only_what_was_sent(client):
+    kavya = client.post("/api/people", json={"name": "Kavya Rao", "gender": "female", "age": 25, "height_cm": 160}).json()
+
+    r = client.patch(f"/api/people/{kavya['person_id']}", json={"title": "Dr", "weight_kg": 55})
+
+    assert r.status_code == 200
+    assert (r.json()["display_name"], r.json()["height_cm"], r.json()["weight_kg"]) == ("Dr Kavya Rao", 160.0, 55.0)
+    listed = [p for p in client.get("/api/people").json()["people"] if p["person_id"] == kavya["person_id"]]
+    assert listed[0]["weight_kg"] == 55.0
+
+
+def test_editing_checks_the_rules_and_the_owner(backend, client):
+    assert client.patch("/api/people/amma", json={"age": 500}).status_code == 400
+    theirs = log_in(TestClient(client.app), email="chethan@example.com")
+    assert theirs.patch("/api/people/amma", json={"age": 50}).status_code == 404
+
+
+# ---- Upload in two steps: preview (read + name check), confirm (save reviewed values) ----
+
+def preview(client, image, person_id="amma", lang=None):
+    data = {"person_id": person_id}
+    if lang:
+        data["lang"] = lang
+    return client.post("/api/reports/preview", data=data, files={"file": ("r.jpg", image, "image/jpeg")})
+
+
+def confirm(client, image=b"sunita-named", person_id="amma", **payload):
+    import json as _json
+    body = {"report_date": "2026-09-12", "lab_name": "Sri Sai Diagnostics", "patient_name": "Mrs. Sunita Rao",
+            "readings": [{"test_name": "HbA1c", "value": 6.4, "unit": "%", "ref_low": 4.0, "ref_high": 5.6}],
+            **payload}
+    return client.post("/api/reports/confirm", data={"person_id": person_id, "payload": _json.dumps(body)},
+                       files={"file": ("r.jpg", image, "image/jpeg")})
+
+
+def test_preview_reads_the_report_without_saving_anything(client, backend):
+    r = preview(client, b"sunita-named")
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["name_check"] == {"status": "same", "detected_name": "Mrs. Sunita Rao"}
+    assert body["report_date"] == "2026-09-12" and body["saved"] is False
+    assert body["readings"] == [{"test_key": "hba1c", "test_name": "HbA1c", "value": 6.4, "unit": "%",
+                                 "ref_low": 4.0, "ref_high": 5.6, "status": "high"}]
+    assert backend.rows == {} and backend.images == {} and backend.reports == {}
+
+
+def test_a_strangers_report_is_analysed_but_never_saved(client, backend):
+    r = preview(client, b"stranger")
+
+    body = r.json()
+    assert body["name_check"]["status"] == "different"
+    assert body["analysis"]["trends"][0]["current"] == 7.2
+    assert body["analysis"]["summary"]
+    assert backend.rows == {} and backend.images == {}
+
+
+def test_a_family_members_report_points_to_them(client):
+    body = preview(client, b"ramesh-named").json()
+
+    assert body["name_check"]["status"] == "other_person" and body["name_check"]["person_id"] == "appa"
+
+
+def test_confirm_saves_the_reviewed_values_photo_and_report(client, backend):
+    r = confirm(client, readings=[{"test_name": "HbA1c", "value": "6.2", "unit": "%", "ref_low": 4, "ref_high": 5.6}],
+                height_cm=158, weight_kg=61)
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["trends"][0]["current"] == 6.2            # the corrected value, not the model's 6.4
+    assert body["report"]["summary"]
+    [report] = backend.list_reports("amma")
+    assert report.height_cm == 158.0 and report.test_keys == ["hba1c"]
+    assert backend.images == {report.s3_key: b"sunita-named"}
+    amma = backend.people[OWNER]["amma"]
+    assert (amma.height_cm, amma.weight_kg) == (158.0, 61.0)   # the profile follows the latest report
+
+
+def test_confirm_refuses_someone_elses_report(client, backend):
+    r = confirm(client, image=b"stranger", patient_name="Priya Nair")
+
+    assert r.status_code == 409
+    assert "not saved" in r.json()["error"]
+    assert backend.rows == {} and backend.images == {}
+
+
+def test_confirm_refuses_a_family_members_report_for_the_wrong_person(client, backend):
+    assert confirm(client, patient_name="Mr Ramesh Rao").status_code == 409
+    assert backend.rows == {}
+
+
+def test_a_report_without_a_name_needs_an_explicit_ok(client, backend):
+    assert confirm(client, patient_name=None).status_code == 409
+    assert confirm(client, patient_name=None, name_confirmed=True).status_code == 200
+
+
+def test_confirm_checks_the_reviewed_values_and_date(client, backend):
+    assert confirm(client, readings=[{"test_name": "HbA1c", "value": "pale"}]).status_code == 400
+    assert confirm(client, report_date="12/09/2026").status_code == 400
+    assert confirm(client, height_cm=900).status_code == 400
+    assert backend.rows == {}
+
+
+def test_the_one_step_upload_also_refuses_someone_elses_report(client, backend):
+    r = upload(client, b"stranger")
+
+    assert r.status_code == 409
+    assert backend.rows == {} and backend.images == {}
+
+
+# ---- History: list, detail with photo and summary, edit, delete ----
+
+def test_history_lists_reports_newest_first(client):
+    upload(client, b"march")
+    upload(client, b"september")
+
+    reports = client.get("/api/reports", params={"person_id": "amma"}).json()["reports"]
+
+    assert [r["report_date"] for r in reports] == ["2026-09-12", "2026-03-04"]
+    assert reports[0]["result_count"] == 1
+
+
+def test_report_detail_has_photo_link_values_and_summary(client):
+    upload(client, b"march")
+    report_id = upload(client, b"september").json()["report"]["report_id"]
+
+    detail = client.get(f"/api/reports/{report_id}", params={"person_id": "amma"}).json()
+
+    assert detail["image_url"].startswith("https://img.example/amma/")
+    assert detail["readings"][0]["value"] == 6.4 and detail["readings"][0]["status"] == "high"
+    assert "This report has 1 result" in detail["summary"]
+
+
+def test_a_summary_in_a_new_language_is_made_once_and_cached(backend):
+    calls = []
+
+    def writer(facts, lang):
+        calls.append(lang)
+        return "ಒಂದು ಫಲಿತಾಂಶ ಹೆಚ್ಚಾಗಿದೆ."
+
+    client = make_client(backend, write_summary=writer)
+    report_id = upload(client, b"september").json()["report"]["report_id"]
+
+    for _ in range(2):
+        client.get(f"/api/reports/{report_id}", params={"person_id": "amma", "lang": "kn"})
+
+    assert calls == ["en", "kn"]
+
+
+def test_editing_a_saved_report_replaces_its_values(client, backend):
+    report_id = upload(client, b"september").json()["report"]["report_id"]
+
+    r = client.put(f"/api/reports/{report_id}", json={"person_id": "amma", "readings": [
+        {"test_name": "HbA1c", "value": 5.9, "unit": "%", "ref_low": 4, "ref_high": 5.6}]})
+
+    assert r.status_code == 200
+    assert client.get("/api/trends", params={"person_id": "amma"}).json()["trends"][0]["current"] == 5.9
+
+
+def test_deleting_a_report_removes_its_values_and_photo(client, backend):
+    upload(client, b"march")
+    report_id = upload(client, b"september").json()["report"]["report_id"]
+
+    assert client.delete(f"/api/reports/{report_id}", params={"person_id": "amma"}).status_code == 200
+
+    history = client.get("/api/trends", params={"person_id": "amma"}).json()["trends"][0]["history"]
+    assert [h["date"] for h in history] == ["2026-03-04"]
+    assert not any(k.endswith(f"{report_id}.jpeg") for k in backend.images)
+
+
+def test_reports_of_another_account_cannot_be_opened(backend):
+    mine = make_client(backend)
+    report_id = upload(mine, b"september").json()["report"]["report_id"]
+    theirs = log_in(TestClient(mine.app), email="chethan@example.com")
+
+    assert theirs.get(f"/api/reports/{report_id}", params={"person_id": "amma"}).status_code == 404
+    assert theirs.delete(f"/api/reports/{report_id}", params={"person_id": "amma"}).status_code == 404
+
+
+def test_an_unknown_report_is_404(client):
+    assert client.get("/api/reports/nope", params={"person_id": "amma"}).status_code == 404

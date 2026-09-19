@@ -66,3 +66,13 @@ def test_every_supported_language_has_a_full_name():
 def test_the_instructions_ask_for_the_printed_test_name():
     assert "test name" in PROMPT.lower()
     assert "never write the test_key" in PROMPT.lower()
+
+
+def test_the_instructions_say_to_translate_words_like_below():
+    assert "below" in PROMPT and "above" in PROMPT
+
+
+def test_the_summary_instructions_forbid_new_numbers_diagnosis_and_lists():
+    from core.phrase import SUMMARY_PROMPT
+    text = SUMMARY_PROMPT.lower()
+    assert "never add, change, round" in text and "never diagnose" in text and "no lists" in text

@@ -9,7 +9,7 @@ import base64
 from core.extract import PROMPT as READ_PROMPT
 from core.extract import Extracted, parse
 from core.phrase import PROMPT as PHRASE_PROMPT
-from core.phrase import build_request, parse_reply
+from core.phrase import SUMMARY_PROMPT, build_request, parse_reply, summary_request
 
 BASE_URL = "https://openrouter.ai/api/v1"
 MIME_TYPES = {"jpeg": "image/jpeg", "png": "image/png"}
@@ -45,6 +45,14 @@ def phrase(templates: dict[str, str], lang: str, model: str, client) -> dict[str
         {"role": "system", "content": PHRASE_PROMPT},
         {"role": "user", "content": build_request(templates, lang)},
     ]))
+
+
+def write_summary(facts: list[str], lang: str, model: str, client) -> str:
+    """Same job as phrase.write_summary(): the overall report summary. The caller checks its numbers."""
+    return _complete(client, model, [
+        {"role": "system", "content": SUMMARY_PROMPT},
+        {"role": "user", "content": summary_request(facts, lang)},
+    ]).strip()
 
 
 def chat_model(api_key: str, model: str):
