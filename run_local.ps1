@@ -1,4 +1,5 @@
-# Start Baseline on this laptop: the backend on http://localhost:8000 and the page on http://localhost:5500
+# Start Baseline on this laptop: the backend on port 8000 and the page on port 5500.
+# Both listen on the Wi-Fi too, so a phone on the same network can open the printed phone link.
 #
 #   powershell -ExecutionPolicy Bypass -File .\run_local.ps1
 #
@@ -18,11 +19,13 @@ foreach ($line in Get-Content $envFile) {
 
 $python = Join-Path $root "backend\.venv\Scripts\python.exe"
 $web = Start-Process $python -ArgumentList "-m", "http.server", "5500" -WorkingDirectory (Join-Path $root "web") -PassThru -WindowStyle Hidden
+$ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -like "Wi-Fi*" -and $_.IPAddress -notlike "169.254.*" } | Select-Object -First 1).IPAddress
 Write-Host "Page:    http://localhost:5500/login.html"
+if ($ip) { Write-Host "Phone:   http://${ip}:5500/login.html  (same Wi-Fi)" }
 Write-Host "Backend: http://localhost:8000  (provider: $env:MODEL_PROVIDER)"
 try {
   Push-Location (Join-Path $root "backend")
-  & $python -m uvicorn app:app --port 8000
+  & $python -m uvicorn app:app --host 0.0.0.0 --port 8000
 } finally {
   Pop-Location
   Stop-Process -Id $web.Id -Force -ErrorAction SilentlyContinue
