@@ -207,3 +207,22 @@ def test_text_sent_in_place_of_a_file_uses_the_contract_error_shape(client):
 
     assert r.status_code == 400
     assert set(r.json()) == {"error"}
+
+
+@pytest.mark.parametrize("slot", ["read_report", "save_image", "save_readings", "load_readings"])
+def test_a_failing_service_still_answers_in_the_contract_shape_with_cors(backend, slot):
+    def broken(*args):
+        raise RuntimeError("AWS is having a bad day")
+
+    services = {name: getattr(backend, name) for name in
+                ("read_report", "save_image", "save_readings", "load_readings")}
+    services[slot] = broken
+    client = TestClient(create_app(Services(**services)), raise_server_exceptions=False)
+
+    r = client.post("/api/reports", data={"person_id": "amma"},
+                    files={"file": ("r.jpg", b"september", "image/jpeg")},
+                    headers={"Origin": "https://example.amplifyapp.com"})
+
+    assert r.status_code == 503
+    assert set(r.json()) == {"error"}
+    assert r.headers["access-control-allow-origin"] == "*"

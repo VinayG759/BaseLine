@@ -3,10 +3,14 @@
 The API never talks to AWS or a model directly. It calls four plug-in
 functions (Services), so the same API runs with Bedrock and DynamoDB, with
 local stand-ins, or with fakes in the tests.
+
+Run locally:  uvicorn app:app --reload --port 8000
+On Lambda:    handler "app.handler"
 """
+import logging
 import re
 import uuid
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, replace
 from datetime import date
 from typing import Callable
 
@@ -14,27 +18,39 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from mangum import Mangum
 
 from core.explain import summarise
-from core.extract import Extracted, ExtractionError
-from core.trends import Reading, compute_trend, group_by_test, sort_trends
+from core.extract import ExtractionError
+from core.services import Services, aws_services
+from core.trends import compute_trend, group_by_test, sort_trends
 
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
 PERSON_ID = re.compile(r"[a-z0-9-]{1,32}")
 LANGS = {"en", "kn", "hi"}
 IMAGE_FORMATS = {"image/jpeg": "jpeg", "image/png": "png"}
+UNAVAILABLE = "Baseline can’t reach its storage or reading service right now. Try again in a minute."
 
-
-@dataclass(frozen=True)
-class Services:
-    read_report: Callable[[bytes, str], Extracted]              # image, "jpeg"|"png"
-    save_image: Callable[[str, str, bytes, str], str]           # person, report id, image, format -> key
-    save_readings: Callable[[str, list[Reading], str, str], None]  # person, readings, report id, key
-    load_readings: Callable[[str], list[Reading]]               # person
+log = logging.getLogger("baseline")
 
 
 def _fail(status: int, sentence: str):
     raise HTTPException(status_code=status, detail=sentence)
+
+
+def _call(slot: Callable, *args):
+    """Run one service. If AWS (or anything behind it) fails, log why and answer 503.
+
+    Raising HTTPException here, not relying on a catch-all handler, keeps the
+    CORS headers on the response, so the browser shows our sentence.
+    """
+    try:
+        return slot(*args)
+    except (HTTPException, ExtractionError):
+        raise
+    except Exception:
+        log.exception("service %s failed", getattr(slot, "__name__", slot))
+        _fail(503, UNAVAILABLE)
 
 
 def _check_person(person_id: str | None) -> str:
@@ -70,7 +86,7 @@ def create_app(services: Services) -> FastAPI:
         return JSONResponse(status_code=400, content={"error": "Something in the request was missing or malformed."})
 
     def build_response(person_id: str, lang: str, report: dict | None, touched: set[str]) -> dict:
-        readings = services.load_readings(person_id)
+        readings = _call(services.load_readings, person_id)
         trends = sort_trends([compute_trend(group) for group in group_by_test(readings)])
         sentences = summarise(trends, lang)
         return {
@@ -110,7 +126,7 @@ def create_app(services: Services) -> FastAPI:
             _fail(400, "Upload a JPEG or PNG photo of the report.")
 
         try:
-            extracted = services.read_report(image, image_format)
+            extracted = _call(services.read_report, image, image_format)
         except ExtractionError as e:
             _fail(422, str(e))
 
@@ -122,10 +138,14 @@ def create_app(services: Services) -> FastAPI:
 
         readings = [replace(r, taken_on=taken_on) for r in extracted.readings]
         report_id = uuid.uuid4().hex
-        s3_key = services.save_image(person_id, report_id, image, image_format)
-        services.save_readings(person_id, readings, report_id, s3_key)
+        s3_key = _call(services.save_image, person_id, report_id, image, image_format)
+        _call(services.save_readings, person_id, readings, report_id, s3_key)
 
         report = {"report_id": report_id, "report_date": taken_on, "lab_name": extracted.lab_name}
         return build_response(person_id, lang, report, touched={r.test_key for r in readings})
 
     return app
+
+
+app = create_app(aws_services())
+handler = Mangum(app)   # lets the same app run on Lambda
