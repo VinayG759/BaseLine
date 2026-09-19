@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Baseline - A Health Record That Notices</title>
+  <meta name="description" content="Photograph your family's lab reports. Baseline remembers every result and notices when numbers move the wrong way.">
+
+  <!-- Google Fonts: Nunito, IBM Plex Mono, Noto Sans Kannada, Noto Sans Devanagari -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d9488">
+  <style>
+    .landing-hero {
+      text-align: center;
+      padding: 24px 12px 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .landing-mascot {
+      width: 110px;
+      height: 110px;
+      animation: floatMascot 3s ease-in-out infinite alternate;
+    }
+    @keyframes floatMascot {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(-8px); }
+    }
+    .landing-title {
+      font-size: 1.8rem;
+      font-weight: 900;
+      line-height: 1.25;
+      letter-spacing: -0.5px;
+    }
+    .landing-tagline {
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      max-width: 480px;
+      line-height: 1.5;
+    }
+    .cta-btn {
+      font-size: 1.15rem;
+      padding: 16px 32px;
+      min-width: 220px;
+      margin-top: 6px;
+    }
+
+    /* The Problem Section */
+    .problem-box {
+      border-left: 4px solid var(--accent);
+      background-color: var(--bg-card-subtle);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 8px 0;
+    }
+    .problem-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .problem-item::before {
+      content: "•";
+      color: var(--accent);
+      margin-right: 8px;
+      font-weight: 900;
+    }
+
+    /* How It Works (3 Steps) */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    @media (min-width: 600px) {
+      .steps-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    .step-card {
+      text-align: center;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .step-icon {
+      font-size: 2.2rem;
+    }
+    .step-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+    .step-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Feature Row */
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .feature-chip {
+      background-color: var(--bg-card);
+      border: 2px solid var(--border-color);
+      border-radius: 16px;
+      padding: 14px 12px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .feature-icon {
+      font-size: 1.5rem;
+    }
+    .feature-title {
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+    .feature-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <a href="index.html" class="brand-logo" aria-label="Baseline Home">
+          <span>Baseline</span>
+          <span class="brand-badge">AWS Hackathon</span>
+        </a>
+      </div>
+      <div class="header-actions">
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode">🌙</button>
+      </div>
+    </header>
+
+    <!-- Hero Section (Screen A) -->
+    <main>
+      <section class="card landing-hero">
+        <img class="landing-mascot" src="mascot/wave.svg" alt="Cartoon doctor mascot waving">
+        <h1 class="landing-title">Baseline: a health record that notices</h1>
+        <p class="landing-tagline">
+          Photograph your family's lab reports. Baseline remembers every result and tells you, in your language, when a number keeps moving the wrong way.
+        </p>
+        <a href="app.html" class="btn btn-primary cta-btn">
+          Open Baseline →
+        </a>
+      </section>
+
+      <!-- The Problem in 3 Short Lines -->
+      <section class="problem-box" aria-label="Why Baseline exists">
+        <ul class="problem-list">
+          <li class="problem-item">Reports sit in a drawer.</li>
+          <li class="problem-item">Each one gets a glance.</li>
+          <li class="problem-item">The warning is in the change BETWEEN reports.</li>
+        </ul>
+      </section>
+
+      <!-- How It Works (3 Steps) -->
+      <section aria-label="How Baseline works" style="margin-top: 8px;">
+        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;">How It Works</h2>
+        <div class="steps-grid">
+          <div class="card step-card">
+            <span class="step-icon">📸</span>
+            <h3 class="step-title">1. Photograph</h3>
+            <p class="step-desc">Snap a photo of your printed lab test report with your camera.</p>
+          </div>
+          <div class="card step-card">
+            <span class="step-icon">🧠</span>
+            <h3 class="step-title">2. Remembers</h3>
+            <p class="step-desc">Digits every number and securely connects it to past records.</p>
+          </div>
+          <div class="card step-card">
+            <span class="step-icon">📈</span>
+            <h3 class="step-title">3. Notices</h3>
+            <p class="step-desc">Instantly graphs trends against normal bands and highlights rising risks.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Feature Highlights -->
+      <section aria-label="Key features" style="margin-top: 14px;">
+        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;">Built for Families &amp; Doctors</h2>
+        <div class="features-grid">
+          <div class="feature-chip">
+            <span class="feature-icon">🌐</span>
+            <span class="feature-title">English / ಕನ್ನಡ / हिन्दी</span>
+            <span class="feature-desc">Summaries in your mother tongue</span>
+          </div>
+          <div class="feature-chip">
+            <span class="feature-icon">🩺</span>
+            <span class="feature-title">Doctor View</span>
+            <span class="feature-desc">Clinical tables ready for consultation</span>
+          </div>
+          <div class="feature-chip">
+            <span class="feature-icon">💬</span>
+            <span class="feature-title">Ask Questions</span>
+            <span class="feature-desc">Clear Q&amp;A directly from your reports</span>
+          </div>
+          <div class="feature-chip">
+            <span class="feature-icon">🗓️</span>
+            <span class="feature-title">Next-Test Reminders</span>
+            <span class="feature-desc">Gentle follow-up tracking dates</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Medical Disclaimer Footer (Mandatory across all screens) -->
+  <footer class="app-footer" role="contentinfo">
+    <p class="footer-disclaimer">
+      Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.
+    </p>
+    <p class="footer-meta">
+      Made for the AWS student hackathon
+    </p>
+  </footer>
+
+  <!-- Theme Toggle Controller -->
+  <script>
+    (() => {
+      const themeBtn = document.getElementById("theme-toggle");
+      const currentTheme = localStorage.getItem("baseline_theme") || "light";
+      document.documentElement.setAttribute("data-theme", currentTheme);
+      if (themeBtn) themeBtn.textContent = currentTheme === "dark" ? "☀️" : "🌙";
+
+      if (themeBtn) {
+        themeBtn.addEventListener("click", () => {
+          const active = document.documentElement.getAttribute("data-theme");
+          const next = active === "dark" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", next);
+          try {
+            localStorage.setItem("baseline_theme", next);
+          } catch (e) {}
+          themeBtn.textContent = next === "dark" ? "☀️" : "🌙";
+        });
+      }
+
+      // Register Service Worker for offline/PWA capability
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js").catch((err) => {
+            console.log("Service worker registration skipped:", err);
+          });
+        });
+      }
+    })();
+
+  </script>
+</body>
+</html>

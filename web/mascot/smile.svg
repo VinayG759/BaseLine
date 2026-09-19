@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Dr. Bindu smiling">
+  <defs>
+    <linearGradient id="coatGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <linearGradient id="scrubsGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Body / Lab Coat -->
+  <path d="M 28 116 C 28 85 40 76 60 76 C 80 76 92 85 92 116 Z" fill="url(#coatGrad)" stroke="#cbd5e1" stroke-width="2"/>
+  <polygon points="50,76 70,76 60,94" fill="url(#scrubsGrad)"/>
+
+  <!-- Stethoscope -->
+  <path d="M 44 80 C 44 98 56 104 60 104 C 64 104 76 98 76 80" fill="none" stroke="#042f2e" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="60" cy="107" r="4.5" fill="#0d9488" stroke="#042f2e" stroke-width="2"/>
+
+  <!-- Head -->
+  <ellipse cx="60" cy="48" rx="24" ry="26" fill="#fcd34d"/>
+  
+  <!-- Hair -->
+  <path d="M 36 44 C 36 24 50 18 60 18 C 70 18 84 24 84 44 C 84 34 76 26 60 26 C 44 26 36 34 36 44 Z" fill="#1e293b"/>
+  <ellipse cx="60" cy="16" rx="12" ry="7" fill="#1e293b"/>
+
+  <!-- Glasses -->
+  <circle cx="51" cy="48" r="7.5" fill="none" stroke="#0d9488" stroke-width="2.5"/>
+  <circle cx="69" cy="48" r="7.5" fill="none" stroke="#0d9488" stroke-width="2.5"/>
+  <line x1="58.5" y1="48" x2="61.5" y2="48" stroke="#0d9488" stroke-width="2.5"/>
+
+  <!-- Happy smiling eyes (curved arcs ^ ^) -->
+  <path d="M 47 48 Q 51 44 55 48" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M 65 48 Q 69 44 73 48" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Cheerful warm smile -->
+  <path d="M 52 57 Q 60 66 68 57 Z" fill="#dc2626" stroke="#0f172a" stroke-width="2"/>
+  <path d="M 54 57 Q 60 61 66 57" fill="#ffffff"/>
+
+  <!-- Rosy cheeks -->
+  <ellipse cx="44" cy="54" rx="4" ry="2.5" fill="#f87171" opacity="0.7"/>
+  <ellipse cx="76" cy="54" rx="4" ry="2.5" fill="#f87171" opacity="0.7"/>
+
+  <!-- Arms resting happily -->
+  <path d="M 32 86 Q 22 98 30 114" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 32 86 Q 22 98 30 114" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 88 86 Q 98 98 90 114" fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+  <path d="M 88 86 Q 98 98 90 114" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-linecap="round"/>
+</svg>

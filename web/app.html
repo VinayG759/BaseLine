@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Baseline - A Health Record That Notices</title>
+  <meta name="description" content="Baseline tracks family lab results over time, highlighting trends and out-of-range values.">
+
+  <!-- Google Fonts: Nunito, IBM Plex Mono, Noto Sans Kannada, Noto Sans Devanagari -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d9488">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <a href="index.html" class="brand-logo" id="brand-link" aria-label="Baseline Home">
+          <span>Baseline</span>
+          <span class="brand-badge">Demo</span>
+        </a>
+      </div>
+      <div class="header-actions">
+        <button id="doctor-view-btn" class="btn btn-secondary btn-sm" aria-label="Open Doctor View">
+          🩺 Doctor view
+        </button>
+        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode">🌙</button>
+      </div>
+    </header>
+
+    <!-- Screen B: People and Language Selector -->
+    <section class="card people-bar" aria-label="Family Member and Language Controls">
+      <div class="people-controls">
+        <div class="select-wrapper">
+          <label for="person-select" class="visually-hidden" style="display:none;">Select Person</label>
+          <select id="person-select" class="app-select" aria-label="Select Family Member">
+            <option value="">Loading profiles...</option>
+          </select>
+        </div>
+
+        <button id="open-add-person-btn" class="btn btn-secondary btn-sm" aria-label="Add a new family member">
+          + Add person
+        </button>
+
+        <div class="select-wrapper lang-select-wrapper">
+          <label for="lang-select" class="visually-hidden" style="display:none;">Select Language</label>
+          <select id="lang-select" class="app-select" aria-label="Select Language">
+            <option value="en">English</option>
+            <option value="kn">ಕನ್ನಡ</option>
+            <option value="hi">हिन्दी</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Doctor Mascot & Dynamic Speech Bubble -->
+    <section id="mascot-container" class="mascot-section" aria-label="Doctor Mascot Assistant">
+      <div class="mascot-avatar-wrapper">
+        <img class="mascot-avatar" src="mascot/wave.svg" alt="Cartoon doctor mascot">
+      </div>
+      <div class="mascot-bubble" role="status" aria-live="polite">
+        Hello! Loading your health records...
+      </div>
+    </section>
+
+    <!-- Screen C: Reminder & Winding History Path -->
+    <section id="reminder-path-section" aria-label="History Path and Next Test Reminder" style="display: none;">
+      <!-- Populated dynamically by app.js -->
+    </section>
+
+    <!-- Screen D: Add a Report -->
+    <section id="upload-section" class="card upload-card" aria-label="Upload New Lab Report">
+      <h2 style="font-size: 1.15rem; font-weight: 800;">Add a Report</h2>
+      
+      <div class="upload-actions-grid">
+        <button type="button" id="take-photo-btn" class="btn btn-primary">
+          📷 Take photo
+        </button>
+        <button type="button" id="choose-gallery-btn" class="btn btn-secondary">
+          🖼️ From gallery
+        </button>
+      </div>
+
+      <!-- Hidden file inputs -->
+      <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;" aria-hidden="true">
+      <input type="file" id="gallery-input" accept="image/*" style="display: none;" aria-hidden="true">
+
+      <!-- Photo Preview Box -->
+      <div id="photo-preview-container" class="photo-preview-box" style="display: none;">
+        <img id="photo-preview" src="" alt="Selected lab report preview">
+      </div>
+
+      <!-- Collapsible Date Option -->
+      <details class="collapsible-details">
+        <summary>Date not printed clearly?</summary>
+        <div class="collapsible-content">
+          <label for="custom-report-date" style="font-weight: 600; font-size: 0.85rem;">Report Date (Optional)</label>
+          <input type="date" id="custom-report-date" class="date-input">
+        </div>
+      </details>
+
+      <button type="button" id="read-report-btn" class="btn btn-primary" disabled style="width: 100%;">
+        Read report
+      </button>
+
+      <!-- Status indicator with role="status" and aria-live="polite" -->
+      <div id="upload-status" class="upload-status" role="status" aria-live="polite"></div>
+    </section>
+
+    <!-- Screen E: Trend Cards -->
+    <section id="trends-section" aria-label="Lab Test Trends">
+      <div id="trends-container" class="trends-list">
+        <!-- Populated dynamically by app.js -->
+      </div>
+    </section>
+
+    <!-- Screen G: Chat Panel ("Ask about these results") -->
+    <section id="chat-section" class="card chat-card" aria-label="Ask questions about lab results">
+      <h2 class="chat-header-title">Ask about these results</h2>
+
+      <!-- Suggested Tap-to-Send Chips -->
+      <div class="chat-chips-container" role="group" aria-label="Quick questions">
+        <button type="button" class="chip-btn" data-prompt="Is anything getting worse?">
+          Is anything getting worse?
+        </button>
+        <button type="button" class="chip-btn" data-prompt="What should I ask the doctor?">
+          What should I ask the doctor?
+        </button>
+        <button type="button" class="chip-btn" data-prompt="Explain HbA1c simply.">
+          Explain HbA1c simply.
+        </button>
+      </div>
+
+      <!-- Chat Bubble History -->
+      <div id="chat-messages" class="chat-messages" role="log" aria-live="polite">
+        <div class="chat-bubble mascot-reply-bubble">
+          Ask me any question about these lab tests.
+        </div>
+      </div>
+
+      <!-- Chat Input Form -->
+      <form id="chat-form" class="chat-input-form">
+        <div class="chat-input-row">
+          <label for="chat-input" class="visually-hidden" style="display:none;">Type a question</label>
+          <input type="text" id="chat-input" class="chat-text-input" maxlength="500" placeholder="Ask about your numbers..." aria-label="Type your health question" required autocomplete="off">
+          <button type="submit" id="chat-send-btn" class="btn btn-primary btn-sm">
+            Send
+          </button>
+        </div>
+        <div class="chat-meta-row">
+          <span>Answers come only from these reports. Baseline doesn't diagnose.</span>
+          <span id="chat-char-counter">0/500</span>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <!-- Screen B Modal: Add Person Dialog -->
+  <div id="add-person-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="add-person-title">
+    <div class="modal-sheet" style="max-width: 400px;">
+      <h2 id="add-person-title" style="font-size: 1.2rem; font-weight: 800;">Add Family Member</h2>
+      <form id="add-person-form" style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+        <div>
+          <label for="new-person-title" style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;">Title</label>
+          <select id="new-person-title" class="app-select">
+            <option value="">(None)</option>
+            <option value="Mr">Mr</option>
+            <option value="Ms">Ms</option>
+            <option value="Mrs">Mrs</option>
+            <option value="Miss">Miss</option>
+            <option value="Dr">Dr</option>
+            <option value="Mx">Mx</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="new-person-name" style="display: block; font-weight: 700; font-size: 0.9rem; margin-bottom: 4px;">Full Name</label>
+          <input type="text" id="new-person-name" class="date-input" style="width: 100%;" required maxlength="40" placeholder="e.g. Sunita Rao">
+        </div>
+
+        <div id="self-checkbox-container" style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+          <input type="checkbox" id="new-person-self" style="width: 20px; height: 20px; accent-color: var(--accent);">
+          <label for="new-person-self" style="font-weight: 700; font-size: 0.9rem; cursor: pointer;">This is me</label>
+        </div>
+
+        <div id="add-person-error" style="color: var(--danger); font-size: 0.85rem; font-weight: 700; min-height: 18px;" role="alert"></div>
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px;">
+          <button type="button" id="close-add-person-btn" class="btn btn-secondary btn-sm">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-sm">Save Person</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Screen F Modal: Doctor View Clinical Panel -->
+  <div id="doctor-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Clinical Doctor View">
+    <div id="doctor-modal-content" class="modal-sheet">
+      <!-- Populated dynamically by app.js -->
+    </div>
+  </div>
+
+  <!-- Habit Celebration Overlay (Part 6) -->
+  <div id="celebration-modal" class="celebration-overlay" role="status" aria-live="assertive">
+    <div class="celebration-card">
+      <div class="celebration-emoji">🎉</div>
+      <h3 class="celebration-title">Report Added!</h3>
+      <p class="celebration-subtitle">Baseline recorded results into history.</p>
+    </div>
+  </div>
+
+  <!-- Medical Disclaimer Footer (Mandatory across all screens) -->
+  <footer class="app-footer" role="contentinfo">
+    <p class="footer-disclaimer">
+      Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.
+    </p>
+    <p class="footer-meta">
+      Made for the AWS student hackathon
+    </p>
+  </footer>
+
+  <!-- Core JavaScript Modules in Order -->
+  <script src="config.js"></script>
+  <script src="mock.js"></script>
+  <script src="api.js"></script>
+  <script src="mascot.js"></script>
+  <script src="app.js"></script>
+
+  <!-- Theme Toggle Controller -->
+  <script>
+    (() => {
+      const themeBtn = document.getElementById("theme-toggle");
+      const currentTheme = localStorage.getItem("baseline_theme") || "light";
+      document.documentElement.setAttribute("data-theme", currentTheme);
+      if (themeBtn) themeBtn.textContent = currentTheme === "dark" ? "☀️" : "🌙";
+
+      if (themeBtn) {
+        themeBtn.addEventListener("click", () => {
+          const active = document.documentElement.getAttribute("data-theme");
+          const next = active === "dark" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", next);
+          try {
+            localStorage.setItem("baseline_theme", next);
+          } catch (e) {}
+          themeBtn.textContent = next === "dark" ? "☀️" : "🌙";
+        });
+      }
+
+      // Register Service Worker for offline/PWA capability
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js").catch((err) => {
+            console.log("Service worker registration skipped:", err);
+          });
+        });
+      }
+    })();
+
+  </script>
+</body>
+</html>

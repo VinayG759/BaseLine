@@ -1,7 +1,6 @@
 import boto3
 import pytest
 from fastapi.testclient import TestClient
-from moto import mock_aws
 
 from app import create_app
 from core.services import aws_services
@@ -9,33 +8,6 @@ from core.trends import Reading
 
 REGION = "us-east-1"
 HBA1C = Reading("hba1c", "HbA1c", 6.4, "%", 4.0, 5.6, "2026-09-12")
-
-
-@pytest.fixture
-def no_settings(monkeypatch):
-    for name in ("AWS_REGION", "AWS_DEFAULT_REGION", "MODEL_ID", "BUCKET", "TABLE"):
-        monkeypatch.delenv(name, raising=False)
-    for name, value in {"AWS_ACCESS_KEY_ID": "testing", "AWS_SECRET_ACCESS_KEY": "testing",
-                        "AWS_SESSION_TOKEN": "testing"}.items():
-        monkeypatch.setenv(name, value)
-
-
-@pytest.fixture
-def configured_aws(no_settings, monkeypatch):
-    for name, value in {"AWS_REGION": REGION, "MODEL_ID": "us.amazon.nova-pro-v1:0",
-                        "BUCKET": "baseline-reports-test", "TABLE": "baseline-readings"}.items():
-        monkeypatch.setenv(name, value)
-    with mock_aws():
-        boto3.client("s3", region_name=REGION).create_bucket(Bucket="baseline-reports-test")
-        boto3.resource("dynamodb", region_name=REGION).create_table(
-            TableName="baseline-readings",
-            KeySchema=[{"AttributeName": "personId", "KeyType": "HASH"},
-                       {"AttributeName": "sk", "KeyType": "RANGE"}],
-            AttributeDefinitions=[{"AttributeName": "personId", "AttributeType": "S"},
-                                  {"AttributeName": "sk", "AttributeType": "S"}],
-            BillingMode="PAY_PER_REQUEST",
-        )
-        yield
 
 
 def test_settings_connect_the_slots_to_s3_and_dynamodb(configured_aws):

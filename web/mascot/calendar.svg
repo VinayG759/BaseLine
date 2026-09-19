@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Dr. Bindu holding calendar">
+  <defs>
+    <linearGradient id="coatGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <linearGradient id="scrubsGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0d9488"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Body / Lab Coat -->
+  <path d="M 28 116 C 28 85 40 76 60 76 C 80 76 92 85 92 116 Z" fill="url(#coatGrad)" stroke="#cbd5e1" stroke-width="2"/>
+  <polygon points="50,76 70,76 60,94" fill="url(#scrubsGrad)"/>
+
+  <!-- Stethoscope -->
+  <path d="M 44 80 C 44 98 56 104 60 104 C 64 104 76 98 76 80" fill="none" stroke="#042f2e" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Head -->
+  <ellipse cx="60" cy="48" rx="24" ry="26" fill="#fcd34d"/>
+  
+  <!-- Hair -->
+  <path d="M 36 44 C 36 24 50 18 60 18 C 70 18 84 24 84 44 C 84 34 76 26 60 26 C 44 26 36 34 36 44 Z" fill="#1e293b"/>
+  <ellipse cx="60" cy="16" rx="12" ry="7" fill="#1e293b"/>
+
+  <!-- Glasses -->
+  <circle cx="51" cy="48" r="7.5" fill="none" stroke="#0d9488" stroke-width="2.5"/>
+  <circle cx="69" cy="48" r="7.5" fill="none" stroke="#0d9488" stroke-width="2.5"/>
+  <line x1="58.5" y1="48" x2="61.5" y2="48" stroke="#0d9488" stroke-width="2.5"/>
+
+  <!-- Eyes -->
+  <circle cx="51" cy="48" r="2.5" fill="#0f172a"/>
+  <circle cx="69" cy="48" r="2.5" fill="#0f172a"/>
+
+  <!-- Gentle smile -->
+  <path d="M 54 58 Q 60 63 66 58" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Holding Calendar in front -->
+  <g transform="translate(42, 75)">
+    <!-- Calendar base -->
+    <rect x="0" y="0" width="36" height="36" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+    <!-- Calendar red top bar -->
+    <path d="M 0 6 Q 0 0 6 0 L 30 0 Q 36 0 36 6 L 36 10 L 0 10 Z" fill="#dc2626"/>
+    <!-- Binder rings -->
+    <rect x="8" y="-2" width="4" height="4" rx="1" fill="#475569"/>
+    <rect x="24" y="-2" width="4" height="4" rx="1" fill="#475569"/>
+    <!-- Calendar grid dots -->
+    <circle cx="9" cy="17" r="1.5" fill="#94a3b8"/>
+    <circle cx="18" cy="17" r="1.5" fill="#94a3b8"/>
+    <circle cx="27" cy="17" r="1.5" fill="#94a3b8"/>
+    <circle cx="9" cy="24" r="1.5" fill="#94a3b8"/>
+    <!-- Highlighted due date -->
+    <circle cx="18" cy="24" r="3.5" fill="#0d9488"/>
+    <circle cx="27" cy="24" r="1.5" fill="#94a3b8"/>
+    <circle cx="9" cy="30" r="1.5" fill="#94a3b8"/>
+    <circle cx="18" cy="30" r="1.5" fill="#94a3b8"/>
+  </g>
+
+  <!-- Hands holding sides of calendar -->
+  <ellipse cx="40" cy="92" rx="4.5" ry="5.5" fill="#fcd34d"/>
+  <ellipse cx="80" cy="92" rx="4.5" ry="5.5" fill="#fcd34d"/>
+</svg>

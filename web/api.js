@@ -1,0 +1,178 @@
+/**
+ * Baseline API Module
+ * Switches seamlessly between live HTTP endpoints and MockAPI based on CONFIG.useMock.
+ * Enforces standardized error extraction and provides text sanitization via escapeHtml().
+ */
+
+/**
+ * Escapes unsafe HTML characters to prevent XSS.
+ * Every piece of text received from the API must pass through this before entering the DOM.
+ * @param {string|number|null|undefined} str
+ * @returns {string}
+ */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+const API = (() => {
+  const DEFAULT_ERROR_MESSAGE = "Something went wrong. Try again.";
+
+  /**
+   * Helper to parse error responses according to Rule 5:
+   * "Every error shows the API's 'error' sentence exactly as sent.
+   * If there is none, show 'Something went wrong. Try again.'"
+   */
+  async function handleErrorResponse(response) {
+    let errorMessage = DEFAULT_ERROR_MESSAGE;
+    try {
+      const data = await response.json();
+      if (data && typeof data.error === "string" && data.error.trim()) {
+        errorMessage = data.error.trim();
+      }
+    } catch {
+      // Failed to parse JSON error; preserve DEFAULT_ERROR_MESSAGE
+    }
+    const err = new Error(errorMessage);
+    err.status = response.status;
+    return err;
+  }
+
+  return {
+    /**
+     * GET /api/people
+     * Returns: { people: [ { person_id, title, name, is_self, display_name }, ... ] }
+     */
+    async getPeople() {
+      if (CONFIG.useMock) {
+        return MockAPI.getPeople();
+      }
+      try {
+        const res = await fetch(`${CONFIG.apiUrl}/api/people`);
+        if (!res.ok) throw await handleErrorResponse(res);
+        return await res.json();
+      } catch (err) {
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        throw err;
+      }
+    },
+
+    /**
+     * POST /api/people
+     * Body: { title, name, is_self }
+     * Returns 201 with created person object.
+     */
+    async addPerson(personData) {
+      if (CONFIG.useMock) {
+        return MockAPI.addPerson(personData);
+      }
+      try {
+        const res = await fetch(`${CONFIG.apiUrl}/api/people`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(personData)
+        });
+        if (!res.ok) throw await handleErrorResponse(res);
+        return await res.json();
+      } catch (err) {
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        throw err;
+      }
+    },
+
+    /**
+     * GET /api/trends?person_id=...&lang=en|kn|hi
+     * Returns: { person_id, report, trends[], reminder }
+     */
+    async getTrends(personId, lang = "en") {
+      if (CONFIG.useMock) {
+        return MockAPI.getTrends(personId, lang);
+      }
+      try {
+        const url = `${CONFIG.apiUrl}/api/trends?person_id=${encodeURIComponent(personId)}&lang=${encodeURIComponent(lang)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw await handleErrorResponse(res);
+        return await res.json();
+      } catch (err) {
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        throw err;
+      }
+    },
+
+    /**
+     * POST /api/reports multipart: person_id, file, report_date (optional), lang (optional)
+     * Returns: { person_id, report, trends[], reminder }
+     */
+    async uploadReport(formData) {
+      if (CONFIG.useMock) {
+        return MockAPI.uploadReport(formData);
+      }
+      try {
+        const res = await fetch(`${CONFIG.apiUrl}/api/reports`, {
+          method: "POST",
+          body: formData
+        });
+        if (!res.ok) throw await handleErrorResponse(res);
+        return await res.json();
+      } catch (err) {
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        throw err;
+      }
+    },
+
+    /**
+     * GET /api/doctor?person_id=...
+     * Returns clinical table data: { person_id, report_dates[], tests[] }
+     */
+    async getDoctorView(personId) {
+      if (CONFIG.useMock) {
+        return MockAPI.getDoctorView(personId);
+      }
+      try {
+        const url = `${CONFIG.apiUrl}/api/doctor?person_id=${encodeURIComponent(personId)}`;
+        const res = await fetch(url);
+        if (!res.ok) throw await handleErrorResponse(res);
+        return await res.json();
+      } catch (err) {
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        throw err;
+      }
+    },
+
+    /**
+     * POST /api/chat JSON { person_id, question, lang }
+     * Returns: { person_id, reply }
+     */
+    async askChat(personId, question, lang = "en") {
+      if (CONFIG.useMock) {
+        return MockAPI.askChat(personId, question, lang);
+      }
+      try {
+        const res = await fetch(`${CONFIG.apiUrl}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ person_id: personId, question, lang })
+        });
+        if (!res.ok) throw await handleErrorResponse(res);
+        return await res.json();
+      } catch (err) {
+        if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+        throw err;
+      }
+    }
+  };
+})();
+
+if (typeof window !== "undefined") {
+  window.API = API;
+  window.escapeHtml = escapeHtml;
+} else if (typeof globalThis !== "undefined") {
+  globalThis.API = API;
+  globalThis.escapeHtml = escapeHtml;
+}
+

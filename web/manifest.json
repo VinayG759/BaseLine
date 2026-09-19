@@ -1,0 +1,19 @@
+{
+  "name": "Baseline - A Health Record That Notices",
+  "short_name": "Baseline",
+  "description": "Photograph your family's lab reports. Baseline remembers every result and notices when numbers move the wrong way.",
+  "start_url": "app.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d9488",
+  "theme_color": "#0d9488",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "mascot/wave.svg",
+      "sizes": "120x120 192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
