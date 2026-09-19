@@ -49,6 +49,7 @@
           <input type="password" id="auth-confirm" class="date-input auth-input" autocomplete="new-password" maxlength="128" placeholder="Type it again">
         </div>
 
+        <div id="auth-notice" class="auth-notice" role="status"></div>
         <div id="auth-error" class="auth-error" role="alert"></div>
 
         <button type="submit" id="auth-submit" class="btn btn-primary auth-submit">Log in</button>
@@ -80,6 +81,7 @@
       const confirm = document.getElementById("auth-confirm");
       const submit = document.getElementById("auth-submit");
       const errorBox = document.getElementById("auth-error");
+      const notice = document.getElementById("auth-notice");
       const greeting = document.getElementById("auth-greeting");
 
       function setMode(next) {
@@ -96,6 +98,7 @@
           ? "Create an account to keep lab reports for yourself and your family."
           : "Welcome back! Log in to see your family's lab history.";
         errorBox.textContent = "";
+        notice.textContent = "";
       }
 
       tabLogin.addEventListener("click", () => setMode("login"));
@@ -115,10 +118,18 @@
         submit.textContent = mode === "register" ? "Creating account..." : "Logging in...";
         try {
           if (mode === "register") {
-            await API.register(email, password.value);
-          } else {
-            await API.login(email, password.value);
+            // Account created: switch to the login tab so the person logs in themselves.
+            const created = await API.register(email, password.value);
+            setMode("login");
+            document.getElementById("auth-email").value = created.email;
+            password.value = "";
+            confirm.value = "";
+            notice.textContent = "Account created. Log in with your new password.";
+            submit.disabled = false;
+            password.focus();
+            return;
           }
+          await API.login(email, password.value);
           window.location.replace("app.html");
         } catch (err) {
           errorBox.textContent = err.message;

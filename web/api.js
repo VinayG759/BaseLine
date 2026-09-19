@@ -71,8 +71,8 @@ const API = (() => {
     return res;
   }
 
-  /** Register or log in; both return {token, email}. */
-  async function authenticate(path, email, password) {
+  /** POST {email, password} to an auth endpoint; returns the JSON reply. */
+  async function postCredentials(path, email, password) {
     try {
       const res = await fetch(`${CONFIG.apiUrl}${path}`, {
         method: "POST",
@@ -80,9 +80,7 @@ const API = (() => {
         body: JSON.stringify({ email, password })
       });
       if (!res.ok) throw await handleErrorResponse(res);
-      const data = await res.json();
-      Auth.save(data.token, data.email);
-      return data;
+      return await res.json();
     } catch (err) {
       if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
       throw err;
@@ -110,22 +108,19 @@ const API = (() => {
   }
 
   return {
+    /** Creates the account only; the person then logs in. Returns {email}. */
     async register(email, password) {
-      if (CONFIG.useMock) {
-        const data = await MockAPI.register(email, password);
-        Auth.save(data.token, data.email);
-        return data;
-      }
-      return authenticate("/api/auth/register", email, password);
+      if (CONFIG.useMock) return MockAPI.register(email, password);
+      return postCredentials("/api/auth/register", email, password);
     },
 
+    /** Logs in and remembers the session in this browser. Returns {token, email}. */
     async login(email, password) {
-      if (CONFIG.useMock) {
-        const data = await MockAPI.login(email, password);
-        Auth.save(data.token, data.email);
-        return data;
-      }
-      return authenticate("/api/auth/login", email, password);
+      const data = CONFIG.useMock
+        ? await MockAPI.login(email, password)
+        : await postCredentials("/api/auth/login", email, password);
+      Auth.save(data.token, data.email);
+      return data;
     },
 
     /** Ends the session on the server (best effort) and forgets it here. */

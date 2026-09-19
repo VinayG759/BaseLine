@@ -171,7 +171,7 @@ def create_app(
         except AuthError as e:
             _fail(400, str(e))
         _call(services.save_account, Account(email, hash_password(password)))
-        return start_session(email)
+        return {"email": email}   # no session: the person logs in next, on the login page
 
     @app.post("/api/auth/login")
     def login(body: Credentials):

@@ -88,10 +88,9 @@ def services_for(backend, **overrides):
 
 
 def log_in(client, email=OWNER, password=PASSWORD):
-    """Register (first time) and send the session token with every later request."""
-    r = client.post("/api/auth/register", json={"email": email, "password": password})
-    if r.status_code == 409:
-        r = client.post("/api/auth/login", json={"email": email, "password": password})
+    """Register (if needed), log in, and send the session token with every later request."""
+    client.post("/api/auth/register", json={"email": email, "password": password})
+    r = client.post("/api/auth/login", json={"email": email, "password": password})
     client.headers["Authorization"] = f"Bearer {r.json()['token']}"
     return client
 
@@ -447,12 +446,12 @@ def anonymous(backend):
     return TestClient(create_app(services_for(backend), today=lambda: date(2026, 9, 19)))
 
 
-def test_register_returns_a_token_and_the_email(anonymous, backend):
+def test_register_creates_the_account_but_does_not_log_in(anonymous, backend):
     r = anonymous.post("/api/auth/register", json={"email": " Vinay@Example.com ", "password": PASSWORD})
 
     assert r.status_code == 201
-    assert r.json()["email"] == "vinay@example.com"
-    assert len(r.json()["token"]) >= 40
+    assert r.json() == {"email": "vinay@example.com"}
+    assert backend.sessions == {}
     assert PASSWORD not in backend.accounts["vinay@example.com"].password_hash
 
 

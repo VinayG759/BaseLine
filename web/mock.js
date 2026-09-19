@@ -110,7 +110,8 @@ const MockAPI = (() => {
 
     // POST /api/auth/register and /api/auth/login: any valid-looking email and 8+ character password
     async register(email, password) {
-      return this.login(email, password);
+      const { email: cleanEmail } = await this.login(email, password);
+      return { email: cleanEmail };
     },
 
     async login(email = "", password = "") {

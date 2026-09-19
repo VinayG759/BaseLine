@@ -1268,6 +1268,16 @@ html[lang="kn"], html[lang="hi"],
   min-height: 20px;
 }
 
+.auth-notice {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.auth-notice:empty {
+  display: none;
+}
+
 .auth-submit {
   width: 100%;
   min-height: 48px;

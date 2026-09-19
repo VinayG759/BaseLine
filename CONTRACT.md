@@ -11,7 +11,7 @@ Shared by backend/ and web/. Change it only after both of you agree.
 
 ```
 POST {API}/api/auth/register   JSON {"email": "you@example.com", "password": "at least 8 chars"}
-     → 201 {"token": "...", "email": "you@example.com"}
+     → 201 {"email": "you@example.com"}   (creates the account only; the person then logs in)
 POST {API}/api/auth/login      JSON {"email": ..., "password": ...}
      → 200 {"token": "...", "email": ...}
 POST {API}/api/auth/logout     (with the token) → 200 {"ok": true}; the token stops working
