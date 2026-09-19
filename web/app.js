@@ -230,6 +230,22 @@ function createTrendSvgChart(trend) {
 // Main Baseline Application Object
 const BaselineApp = {
   async init() {
+    // No session on this device: log in first. (An expired one is caught on the first API call.)
+    if (!Auth.token()) {
+      Auth.goToLogin();
+      return;
+    }
+    const emailEl = document.getElementById("account-email");
+    if (emailEl) emailEl.textContent = Auth.email() || "";
+    const logoutBtn = document.getElementById("logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        logoutBtn.disabled = true;
+        await API.logout();
+        Auth.goToLogin();
+      });
+    }
+
     Mascot.init(document.getElementById("mascot-container"));
     this.bindEvents();
     this.loadSavedLanguage();

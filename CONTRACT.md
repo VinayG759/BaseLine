@@ -1,9 +1,29 @@
-# Baseline API contract (version 4)
+# Baseline API contract (version 5)
 
 Shared by backend/ and web/. Change it only after both of you agree.
 
+**Version 5** adds email + password accounts. Every endpoint except register and login now needs
+`Authorization: Bearer <token>`, and answers **401** without a valid session. Each account sees only its own people.
 **Version 4** replaces the fixed people list with real profiles (`GET/POST /api/people`). Every other endpoint now answers **404** for a `person_id` that was never created, so the page must take IDs from `GET /api/people`.
 **Version 3** added a `reminder` field, the doctor view (`GET /api/doctor`) and the chatbot (`POST /api/chat`).
+
+## Accounts (v5)
+
+```
+POST {API}/api/auth/register   JSON {"email": "you@example.com", "password": "at least 8 chars"}
+     → 201 {"token": "...", "email": "you@example.com"}
+POST {API}/api/auth/login      JSON {"email": ..., "password": ...}
+     → 200 {"token": "...", "email": ...}
+POST {API}/api/auth/logout     (with the token) → 200 {"ok": true}; the token stops working
+GET  {API}/api/auth/me         (with the token) → 200 {"email": ...}
+```
+
+| Field | Meaning |
+|---|---|
+| `token` | Send on every other request as `Authorization: Bearer <token>`. Valid for 7 days. |
+| `email` | Stored lowercased; `Vinay@X.com` and `vinay@x.com` are the same account. |
+| errors | 400 bad email or password length (8–128), 409 email already registered, 401 "Email or password is incorrect." (the same for an unknown email and a wrong password). |
+| 401 anywhere else | Not logged in or session expired: forget the token and show the login page. |
 
 ## People (v4)
 

@@ -108,6 +108,23 @@ const MockAPI = (() => {
       }
     },
 
+    // POST /api/auth/register and /api/auth/login: any valid-looking email and 8+ character password
+    async register(email, password) {
+      return this.login(email, password);
+    },
+
+    async login(email = "", password = "") {
+      await sleep(300);
+      const cleanEmail = email.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) {
+        throw new Error("Enter a valid email address.");
+      }
+      if (password.length < 8 || password.length > 128) {
+        throw new Error("Use a password of 8 to 128 characters.");
+      }
+      return { token: "mock-token", email: cleanEmail };
+    },
+
     // GET /api/people
     async getPeople() {
       await sleep(150);

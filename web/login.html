@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Baseline - Log in</title>
+  <meta name="description" content="Log in to Baseline, the health record that notices.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d9488">
+  <script>
+    // Apply the saved theme before the page paints, so there's no flash.
+    try { document.documentElement.setAttribute("data-theme", localStorage.getItem("baseline_theme") || "light"); } catch (e) {}
+  </script>
+</head>
+<body>
+  <main class="auth-page">
+    <a href="index.html" class="brand-logo auth-brand" aria-label="Baseline Home"><span>Baseline</span></a>
+
+    <div class="auth-mascot">
+      <img class="mascot-avatar" src="mascot/wave.svg" alt="Cartoon doctor mascot waving">
+      <p class="mascot-bubble" id="auth-greeting">Welcome back! Log in to see your family's lab history.</p>
+    </div>
+
+    <section class="card auth-card">
+      <div class="auth-tabs" role="tablist" aria-label="Log in or create an account">
+        <button type="button" role="tab" id="tab-login" class="auth-tab active" aria-selected="true">Log in</button>
+        <button type="button" role="tab" id="tab-register" class="auth-tab" aria-selected="false">Create account</button>
+      </div>
+
+      <form id="auth-form" class="auth-form" novalidate>
+        <div>
+          <label for="auth-email" class="auth-label">Email</label>
+          <input type="email" id="auth-email" class="date-input auth-input" autocomplete="email" required maxlength="254" placeholder="you@example.com">
+        </div>
+
+        <div>
+          <label for="auth-password" class="auth-label">Password</label>
+          <input type="password" id="auth-password" class="date-input auth-input" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="At least 8 characters">
+        </div>
+
+        <div id="confirm-row" hidden>
+          <label for="auth-confirm" class="auth-label">Confirm password</label>
+          <input type="password" id="auth-confirm" class="date-input auth-input" autocomplete="new-password" maxlength="128" placeholder="Type it again">
+        </div>
+
+        <div id="auth-error" class="auth-error" role="alert"></div>
+
+        <button type="submit" id="auth-submit" class="btn btn-primary auth-submit">Log in</button>
+      </form>
+    </section>
+
+    <p class="auth-boundary">
+      Baseline explains and tracks lab results. It does not diagnose or recommend treatment.
+      Talk to a doctor about any result.
+    </p>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="mock.js"></script>
+  <script src="api.js"></script>
+  <script>
+    (() => {
+      // Already logged in? Go straight to the app.
+      if (Auth.token()) {
+        window.location.replace("app.html");
+        return;
+      }
+
+      let mode = "login";   // or "register"
+      const tabLogin = document.getElementById("tab-login");
+      const tabRegister = document.getElementById("tab-register");
+      const confirmRow = document.getElementById("confirm-row");
+      const password = document.getElementById("auth-password");
+      const confirm = document.getElementById("auth-confirm");
+      const submit = document.getElementById("auth-submit");
+      const errorBox = document.getElementById("auth-error");
+      const greeting = document.getElementById("auth-greeting");
+
+      function setMode(next) {
+        mode = next;
+        const isRegister = mode === "register";
+        tabLogin.classList.toggle("active", !isRegister);
+        tabRegister.classList.toggle("active", isRegister);
+        tabLogin.setAttribute("aria-selected", String(!isRegister));
+        tabRegister.setAttribute("aria-selected", String(isRegister));
+        confirmRow.hidden = !isRegister;
+        password.autocomplete = isRegister ? "new-password" : "current-password";
+        submit.textContent = isRegister ? "Create account" : "Log in";
+        greeting.textContent = isRegister
+          ? "Create an account to keep lab reports for yourself and your family."
+          : "Welcome back! Log in to see your family's lab history.";
+        errorBox.textContent = "";
+      }
+
+      tabLogin.addEventListener("click", () => setMode("login"));
+      tabRegister.addEventListener("click", () => setMode("register"));
+
+      document.getElementById("auth-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        errorBox.textContent = "";
+        const email = document.getElementById("auth-email").value.trim();
+
+        if (mode === "register" && password.value !== confirm.value) {
+          errorBox.textContent = "The two passwords don't match.";
+          return;
+        }
+
+        submit.disabled = true;
+        submit.textContent = mode === "register" ? "Creating account..." : "Logging in...";
+        try {
+          if (mode === "register") {
+            await API.register(email, password.value);
+          } else {
+            await API.login(email, password.value);
+          }
+          window.location.replace("app.html");
+        } catch (err) {
+          errorBox.textContent = err.message;
+          submit.disabled = false;
+          submit.textContent = mode === "register" ? "Create account" : "Log in";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

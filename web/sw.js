@@ -5,11 +5,12 @@
  * so the application loads instantly and functions reliably even during spotty connectivity or offline clinic visits.
  */
 
-const CACHE_NAME = "baseline-cache-v1";
+const CACHE_NAME = "baseline-cache-v2";   // bump to throw away older cached copies
 const ASSETS_TO_CACHE = [
   "./",
   "app.html",
   "index.html",
+  "login.html",
   "styles.css",
   "config.js",
   "mock.js",
@@ -50,20 +51,18 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Only handle GET requests for our origin
-  if (event.request.method !== "GET") return;
+  // Only our own page files. API calls (another origin) go straight to the network, never cached.
+  const url = new URL(event.request.url);
+  if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
 
+  // Network first, so updates show up immediately; the cached copy is only an offline fallback.
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
+    fetch(event.request)
+      .then((networkResponse) => {
+        const copy = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
         return networkResponse;
-      }).catch(() => {
-        // Fallback if offline
-        return caches.match("app.html");
-      });
-    })
+      })
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("app.html")))
   );
 });

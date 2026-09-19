@@ -20,8 +20,74 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+/**
+ * The logged-in session, kept in this browser.
+ * Technical Concept: Bearer token
+ * After login the backend hands out a random token; sending it as "Authorization: Bearer <token>"
+ * on every request proves who you are, without sending the password again.
+ */
+const Auth = {
+  token() {
+    try { return localStorage.getItem("baseline_token"); } catch { return null; }
+  },
+  email() {
+    try { return localStorage.getItem("baseline_email"); } catch { return null; }
+  },
+  save(token, email) {
+    try {
+      localStorage.setItem("baseline_token", token);
+      localStorage.setItem("baseline_email", email);
+    } catch (e) {
+      console.warn("localStorage write failed:", e);
+    }
+  },
+  clear() {
+    try {
+      localStorage.removeItem("baseline_token");
+      localStorage.removeItem("baseline_email");
+    } catch {}
+  },
+  goToLogin() {
+    window.location.href = "login.html";
+  }
+};
+
 const API = (() => {
   const DEFAULT_ERROR_MESSAGE = "Something went wrong. Try again.";
+
+  /**
+   * fetch() for logged-in calls: adds the session token, and on 401 (not logged in or session
+   * expired) forgets the token and goes to the login page.
+   */
+  async function send(url, options = {}) {
+    const token = Auth.token();
+    const headers = { ...(options.headers || {}) };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      Auth.clear();
+      Auth.goToLogin();
+    }
+    return res;
+  }
+
+  /** Register or log in; both return {token, email}. */
+  async function authenticate(path, email, password) {
+    try {
+      const res = await fetch(`${CONFIG.apiUrl}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+      if (!res.ok) throw await handleErrorResponse(res);
+      const data = await res.json();
+      Auth.save(data.token, data.email);
+      return data;
+    } catch (err) {
+      if (!err.status) err.message = DEFAULT_ERROR_MESSAGE;
+      throw err;
+    }
+  }
 
   /**
    * Helper to parse error responses according to Rule 5:
@@ -44,6 +110,37 @@ const API = (() => {
   }
 
   return {
+    async register(email, password) {
+      if (CONFIG.useMock) {
+        const data = await MockAPI.register(email, password);
+        Auth.save(data.token, data.email);
+        return data;
+      }
+      return authenticate("/api/auth/register", email, password);
+    },
+
+    async login(email, password) {
+      if (CONFIG.useMock) {
+        const data = await MockAPI.login(email, password);
+        Auth.save(data.token, data.email);
+        return data;
+      }
+      return authenticate("/api/auth/login", email, password);
+    },
+
+    /** Ends the session on the server (best effort) and forgets it here. */
+    async logout() {
+      if (!CONFIG.useMock) {
+        try {
+          await fetch(`${CONFIG.apiUrl}/api/auth/logout`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${Auth.token()}` }
+          });
+        } catch {}
+      }
+      Auth.clear();
+    },
+
     /**
      * GET /api/people
      * Returns: { people: [ { person_id, title, name, is_self, display_name }, ... ] }
@@ -53,7 +150,7 @@ const API = (() => {
         return MockAPI.getPeople();
       }
       try {
-        const res = await fetch(`${CONFIG.apiUrl}/api/people`);
+        const res = await send(`${CONFIG.apiUrl}/api/people`);
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
@@ -72,7 +169,7 @@ const API = (() => {
         return MockAPI.addPerson(personData);
       }
       try {
-        const res = await fetch(`${CONFIG.apiUrl}/api/people`, {
+        const res = await send(`${CONFIG.apiUrl}/api/people`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(personData)
@@ -95,7 +192,7 @@ const API = (() => {
       }
       try {
         const url = `${CONFIG.apiUrl}/api/trends?person_id=${encodeURIComponent(personId)}&lang=${encodeURIComponent(lang)}`;
-        const res = await fetch(url);
+        const res = await send(url);
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
@@ -113,7 +210,7 @@ const API = (() => {
         return MockAPI.uploadReport(formData);
       }
       try {
-        const res = await fetch(`${CONFIG.apiUrl}/api/reports`, {
+        const res = await send(`${CONFIG.apiUrl}/api/reports`, {
           method: "POST",
           body: formData
         });
@@ -135,7 +232,7 @@ const API = (() => {
       }
       try {
         const url = `${CONFIG.apiUrl}/api/doctor?person_id=${encodeURIComponent(personId)}`;
-        const res = await fetch(url);
+        const res = await send(url);
         if (!res.ok) throw await handleErrorResponse(res);
         return await res.json();
       } catch (err) {
@@ -153,7 +250,7 @@ const API = (() => {
         return MockAPI.askChat(personId, question, lang);
       }
       try {
-        const res = await fetch(`${CONFIG.apiUrl}/api/chat`, {
+        const res = await send(`${CONFIG.apiUrl}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ person_id: personId, question, lang })
@@ -170,6 +267,7 @@ const API = (() => {
 
 if (typeof window !== "undefined") {
   window.API = API;
+  window.Auth = Auth;
   window.escapeHtml = escapeHtml;
 } else if (typeof globalThis !== "undefined") {
   globalThis.API = API;
