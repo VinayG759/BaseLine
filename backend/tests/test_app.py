@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -55,7 +57,7 @@ def client(backend):
         save_image=backend.save_image,
         save_readings=backend.save_readings,
         load_readings=backend.load_readings,
-    )))
+    ), today=lambda: date(2026, 9, 19)))
 
 
 def upload(client, image, person_id="amma", report_date=None, content_type="image/jpeg", lang=None):
@@ -71,7 +73,7 @@ def test_person_with_no_reports_has_empty_history(client):
     r = client.get("/api/trends", params={"person_id": "appa"})
 
     assert r.status_code == 200
-    assert r.json() == {"person_id": "appa", "report": None, "trends": []}
+    assert r.json() == {"person_id": "appa", "report": None, "trends": [], "reminder": None}
 
 
 def test_invalid_person_id_is_rejected_with_an_error_sentence(client):
@@ -241,3 +243,10 @@ def test_doctor_view_lists_every_result_as_a_table(client):
 
 def test_doctor_view_rejects_an_invalid_person(client):
     assert client.get("/api/doctor", params={"person_id": "../etc"}).status_code == 400
+
+
+def test_trends_carry_a_next_test_reminder(client):
+    upload(client, b"march")
+    r = upload(client, b"august")
+
+    assert r.json()["reminder"] == {"last_report": "2026-08-08", "next_due": "2026-11-06", "overdue": False}

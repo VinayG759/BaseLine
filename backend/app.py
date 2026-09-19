@@ -23,6 +23,7 @@ from mangum import Mangum
 from core.doctor import doctor_view
 from core.explain import summarise
 from core.extract import ExtractionError
+from core.reminder import reminder
 from core.services import Services, aws_services
 from core.trends import compute_trend, group_by_test, sort_trends
 
@@ -74,7 +75,7 @@ def _is_iso_date(text: str) -> bool:
         return False
 
 
-def create_app(services: Services) -> FastAPI:
+def create_app(services: Services, today: Callable[[], date] = date.today) -> FastAPI:
     app = FastAPI(title="Baseline")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
 
@@ -97,6 +98,7 @@ def create_app(services: Services) -> FastAPI:
                 {**asdict(t), "summary": sentences[t.test_key], "updated": t.test_key in touched}
                 for t in trends
             ],
+            "reminder": reminder(readings, today()),
         }
 
     @app.get("/api/trends")
