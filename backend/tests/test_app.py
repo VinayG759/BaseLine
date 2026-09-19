@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app import Services, create_app
 from core.extract import Extracted, ExtractionError
+from core.people import Person
 from core.trends import Reading
 
 
@@ -22,10 +23,21 @@ REPORTS = {
 }
 
 
+SLOTS = ("read_report", "save_image", "save_readings", "load_readings", "list_people", "save_person")
+
+
 class FakeBackend:
     def __init__(self):
         self.rows = {}      # (person, test_key, date) -> Reading, like the DynamoDB keys
         self.images = {}
+        self.people = {p.person_id: p for p in (Person("amma", "Mrs", "Sunita Rao", False),
+                                                Person("appa", "Mr", "Ramesh Rao", False))}
+
+    def list_people(self):
+        return list(self.people.values())
+
+    def save_person(self, person):
+        self.people[person.person_id] = person
 
     def read_report(self, image: bytes, image_format: str) -> Extracted:
         if image not in REPORTS:
@@ -50,14 +62,14 @@ def backend():
     return FakeBackend()
 
 
+def services_for(backend, **overrides):
+    """The fake backend's slots, with any of them replaced by `overrides`."""
+    return Services(**{**{name: getattr(backend, name) for name in SLOTS}, **overrides})
+
+
 @pytest.fixture
 def client(backend):
-    return TestClient(create_app(Services(
-        read_report=backend.read_report,
-        save_image=backend.save_image,
-        save_readings=backend.save_readings,
-        load_readings=backend.load_readings,
-    ), today=lambda: date(2026, 9, 19)))
+    return TestClient(create_app(services_for(backend), today=lambda: date(2026, 9, 19)))
 
 
 def upload(client, image, person_id="amma", report_date=None, content_type="image/jpeg", lang=None):
@@ -211,15 +223,12 @@ def test_text_sent_in_place_of_a_file_uses_the_contract_error_shape(client):
     assert set(r.json()) == {"error"}
 
 
-@pytest.mark.parametrize("slot", ["read_report", "save_image", "save_readings", "load_readings"])
+@pytest.mark.parametrize("slot", ["read_report", "save_image", "save_readings", "load_readings", "list_people"])
 def test_a_failing_service_still_answers_in_the_contract_shape_with_cors(backend, slot):
     def broken(*args):
         raise RuntimeError("AWS is having a bad day")
 
-    services = {name: getattr(backend, name) for name in
-                ("read_report", "save_image", "save_readings", "load_readings")}
-    services[slot] = broken
-    client = TestClient(create_app(Services(**services)), raise_server_exceptions=False)
+    client = TestClient(create_app(services_for(backend, **{slot: broken})), raise_server_exceptions=False)
 
     r = client.post("/api/reports", data={"person_id": "amma"},
                     files={"file": ("r.jpg", b"september", "image/jpeg")},
@@ -254,11 +263,8 @@ def test_trends_carry_a_next_test_reminder(client):
 
 def test_kannada_summaries_come_from_the_phrase_service(backend):
     kn = "HbA1c ಸತತ 2 ಬಾರಿ ಏರಿದೆ (5.6 → 6.1 → 6.4 %)."
-    client = TestClient(create_app(Services(
-        read_report=backend.read_report, save_image=backend.save_image,
-        save_readings=backend.save_readings, load_readings=backend.load_readings,
-        phrase=lambda templates, lang: {"hba1c": kn} if lang == "kn" else templates,
-    )))
+    client = TestClient(create_app(services_for(
+        backend, phrase=lambda templates, lang: {"hba1c": kn} if lang == "kn" else templates)))
     upload(client, b"march")
     upload(client, b"august")
 
@@ -274,10 +280,7 @@ def test_a_failing_phrase_service_still_answers_200_in_english(backend):
     def broken(templates, lang):
         raise RuntimeError("Bedrock unavailable")
 
-    client = TestClient(create_app(Services(
-        read_report=backend.read_report, save_image=backend.save_image,
-        save_readings=backend.save_readings, load_readings=backend.load_readings, phrase=broken,
-    )))
+    client = TestClient(create_app(services_for(backend, phrase=broken)))
     upload(client, b"march")
 
     r = client.get("/api/trends", params={"person_id": "amma", "lang": "hi"})
@@ -289,10 +292,7 @@ def test_a_failing_phrase_service_still_answers_200_in_english(backend):
 # ---- Chat ----
 
 def chat_client(backend, chat):
-    return TestClient(create_app(Services(
-        read_report=backend.read_report, save_image=backend.save_image,
-        save_readings=backend.save_readings, load_readings=backend.load_readings, chat=chat,
-    )))
+    return TestClient(create_app(services_for(backend, chat=chat)))
 
 
 def test_chat_answers_about_the_persons_own_readings(backend):
@@ -354,3 +354,54 @@ def test_chat_when_no_model_is_configured_answers_503(client):
     upload(client, b"march")
 
     assert client.post("/api/chat", json={"person_id": "amma", "question": "Hi"}).status_code == 503
+
+
+# ---- People ----
+
+def test_people_are_listed_yourself_first(client):
+    client.post("/api/people", json={"title": "Mr", "name": "Arjun Rao", "is_self": True})
+
+    people = client.get("/api/people").json()["people"]
+
+    assert [p["display_name"] for p in people] == ["Mr Arjun Rao", "Mr Ramesh Rao", "Mrs Sunita Rao"]
+    assert people[0]["is_self"] is True
+
+
+def test_adding_a_person_returns_them_and_their_reports_start_empty(client):
+    r = client.post("/api/people", json={"title": "Ms", "name": "Kavya Rao", "is_self": False})
+
+    assert r.status_code == 201
+    person = r.json()
+    assert person["display_name"] == "Ms Kavya Rao"
+    trends = client.get("/api/trends", params={"person_id": person["person_id"]}).json()
+    assert trends["trends"] == [] and trends["reminder"] is None
+
+
+def test_a_bad_name_is_rejected_with_a_sentence(client):
+    r = client.post("/api/people", json={"title": "Ms", "name": "R2D2"})
+
+    assert r.status_code == 400
+    assert "name" in r.json()["error"]
+
+
+def test_a_second_self_profile_is_a_conflict(client):
+    client.post("/api/people", json={"name": "Arjun Rao", "is_self": True})
+
+    r = client.post("/api/people", json={"name": "Someone Else", "is_self": True})
+
+    assert r.status_code == 409
+    assert "yourself" in r.json()["error"]
+
+
+@pytest.mark.parametrize("call", [
+    lambda c: c.get("/api/trends", params={"person_id": "nobody-1234"}),
+    lambda c: c.get("/api/doctor", params={"person_id": "nobody-1234"}),
+    lambda c: c.post("/api/chat", json={"person_id": "nobody-1234", "question": "Hi"}),
+    lambda c: upload(c, b"september", person_id="nobody-1234"),
+])
+def test_unknown_people_get_404_everywhere(client, backend, call):
+    r = call(client)
+
+    assert r.status_code == 404
+    assert set(r.json()) == {"error"}
+    assert backend.rows == {} and backend.images == {}

@@ -8,9 +8,11 @@ from decimal import Decimal
 
 from boto3.dynamodb.conditions import Key
 
+from core.people import Person
 from core.trends import Reading
 
 CONTENT_TYPES = {"jpeg": "image/jpeg", "png": "image/png"}
+PEOPLE_PARTITION = "#people"   # "#" can't appear in a person ID, so this never collides with readings
 
 
 def _to_decimal(x: float | None) -> Decimal | None:
@@ -57,16 +59,30 @@ def save_readings(table, person_id: str, readings: list[Reading], report_id: str
             batch.put_item(Item=to_item(person_id, r, report_id, s3_key))
 
 
-def load_readings(table, person_id: str) -> list[Reading]:
-    """Every reading for one person. DynamoDB answers in pages, so keep asking until it's done."""
-    query = {"KeyConditionExpression": Key("personId").eq(person_id)}
-    readings = []
+def _query_all(table, partition: str) -> list[dict]:
+    """Every item in one partition. DynamoDB answers in pages, so keep asking until it's done."""
+    query = {"KeyConditionExpression": Key("personId").eq(partition)}
+    items = []
     while True:
         page = table.query(**query)
-        readings += [from_item(item) for item in page["Items"]]
+        items += page["Items"]
         if "LastEvaluatedKey" not in page:
-            return readings
+            return items
         query["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+
+
+def load_readings(table, person_id: str) -> list[Reading]:
+    return [from_item(item) for item in _query_all(table, person_id)]
+
+
+def save_person(table, person: Person) -> None:
+    table.put_item(Item={"personId": PEOPLE_PARTITION, "sk": person.person_id,
+                         "title": person.title, "name": person.name, "is_self": person.is_self})
+
+
+def load_people(table) -> list[Person]:
+    return [Person(item["sk"], item["title"], item["name"], item["is_self"])
+            for item in _query_all(table, PEOPLE_PARTITION)]
 
 
 def save_image(s3, bucket: str, person_id: str, report_id: str, image: bytes, image_format: str) -> str:

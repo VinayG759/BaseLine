@@ -1,8 +1,31 @@
-# Baseline API contract (version 3)
+# Baseline API contract (version 4)
 
 Shared by backend/ and web/. Change it only after both of you agree.
 
-**Version 3** only adds: a `reminder` field, the doctor view (`GET /api/doctor`) and the chatbot (`POST /api/chat`). Nothing from version 2 changed, so a page built for version 2 keeps working.
+**Version 4** replaces the fixed people list with real profiles (`GET/POST /api/people`). Every other endpoint now answers **404** for a `person_id` that was never created, so the page must take IDs from `GET /api/people`.
+**Version 3** added a `reminder` field, the doctor view (`GET /api/doctor`) and the chatbot (`POST /api/chat`).
+
+## People (v4)
+
+```
+GET  {API}/api/people
+     → {"people": [ {"person_id": "arjun-rao-1a2b", "title": "Mr", "name": "Arjun Rao",
+                     "is_self": true, "display_name": "Mr Arjun Rao"}, ... ]}
+       The "myself" profile (is_self true) comes first, then alphabetical by name.
+
+POST {API}/api/people
+     application/json: {"title": "Mrs", "name": "Sunita Rao", "is_self": false}
+     → 201 with one person object, shaped as above
+```
+
+| Field | Meaning |
+|---|---|
+| `title` | One of `Mr`, `Ms`, `Mrs`, `Miss`, `Dr`, `Mx`, or `""` / missing for none. Anything else is a 400. |
+| `name` | 1–40 characters: letters in any script (Kannada and Hindi work), spaces, `.` `'` `-`. Extra spaces are tidied. Otherwise 400. |
+| `is_self` | "This is me." At most one profile; a second one is a **409** "A profile for yourself already exists." |
+| `display_name` | Title and name together, e.g. "Mrs Sunita Rao". Show this, don't build your own. |
+| `person_id` | Created by the backend from the name plus 4 random characters, e.g. `sunita-rao-4f2a`. Treat it as opaque. |
+| privacy | No logins: everyone who opens the app sees every profile. Use made-up names in demos. |
 
 ## Trends and uploads
 
@@ -68,7 +91,7 @@ lang   language of the "summary" sentence only. en = English, kn = Kannada, hi =
 | `order` | Out-of-range results first (high or low), then the longest streak, then alphabetical by name. |
 | `errors` | Any non-200 carries `{"error": "a sentence a person can act on"}`. The page shows that sentence as-is, so write it for a human. |
 | `language` | Only `summary` is translated. Test names, units, numbers and dates are always returned exactly as printed on the report, whatever the language. If translation fails, `summary` comes back in English; the page doesn’t need to handle that specially. |
-| `people` | Fixed list on the page: `amma`, `appa`, `me`. No accounts, no login. |
+| `people` | From `GET /api/people` (v4). A `person_id` that doesn't exist gets **404** with an error sentence on every endpoint. |
 | `errors, 503` | 503 means AWS or the model is unreachable. The `error` sentence says to try again in a minute. |
 
 ## Doctor view (v3)

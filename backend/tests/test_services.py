@@ -78,3 +78,13 @@ def test_aws_services_include_a_phrase_slot(no_settings):
 
 def test_aws_services_include_a_chat_slot(no_settings):
     assert callable(aws_services().chat)
+
+
+def test_people_are_saved_and_listed_through_dynamodb(configured_aws):
+    from core.people import Person
+    services = aws_services()
+    sunita = Person("sunita-rao-4f2a", "Mrs", "Sunita Rao", False)
+
+    services.save_person(sunita)
+
+    assert services.list_people() == [sunita]

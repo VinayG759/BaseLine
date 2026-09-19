@@ -14,6 +14,7 @@ import boto3
 from core import store
 from core.chat import answer
 from core.extract import Extracted, extract
+from core.people import Person
 from core.phrase import phrase as bedrock_phrase
 from core.trends import Reading
 
@@ -24,6 +25,8 @@ class Services:
     save_image: Callable[[str, str, bytes, str], str]              # person, report id, image, format -> key
     save_readings: Callable[[str, list[Reading], str, str], None]  # person, readings, report id, key
     load_readings: Callable[[str], list[Reading]]                  # person
+    list_people: Callable[[], list[Person]]
+    save_person: Callable[[Person], None]
     phrase: Callable[[dict[str, str], str], dict[str, str]] | None = None  # templates, lang -> sentences
     chat: Callable[[str, str, list[Reading]], str] | None = None            # question, lang, readings -> reply
 
@@ -62,6 +65,12 @@ def aws_services() -> Services:
     def load_readings(person_id):
         return store.load_readings(table(), person_id)
 
+    def list_people():
+        return store.load_people(table())
+
+    def save_person(person):
+        store.save_person(table(), person)
+
     def phrase(templates, lang):
         return bedrock_phrase(templates, lang, _setting("MODEL_ID"), bedrock())
 
@@ -70,4 +79,5 @@ def aws_services() -> Services:
         model = BedrockModel(model_id=_setting("MODEL_ID"), region_name=_setting("AWS_REGION"), temperature=0)
         return answer(question, lang, readings, model)
 
-    return Services(read_report, save_image, save_readings, load_readings, phrase, chat)
+    return Services(read_report, save_image, save_readings, load_readings, list_people, save_person,
+                    phrase, chat)

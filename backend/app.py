@@ -25,6 +25,7 @@ from mangum import Mangum
 from core.doctor import doctor_view
 from core.explain import summarise
 from core.extract import ExtractionError
+from core.people import PersonError, SelfProfileExists, new_person, sort_people
 from core.reminder import reminder
 from core.services import Services, aws_services
 from core.trends import compute_trend, group_by_test, sort_trends
@@ -42,6 +43,12 @@ log = logging.getLogger("baseline")
 
 def _fail(status: int, sentence: str):
     raise HTTPException(status_code=status, detail=sentence)
+
+
+class NewPerson(BaseModel):
+    title: str | None = None
+    name: str | None = None
+    is_self: bool = False
 
 
 class ChatRequest(BaseModel):
@@ -101,6 +108,13 @@ def create_app(
     async def validation_error(_: Request, exc: RequestValidationError):
         return JSONResponse(status_code=400, content={"error": "Something in the request was missing or malformed."})
 
+    def check_person(person_id: str | None) -> str:
+        """A valid ID that belongs to someone in Baseline, or a 400/404 with a sentence."""
+        person_id = _check_person(person_id)
+        if person_id not in {p.person_id for p in _call(services.list_people)}:
+            _fail(404, "This person isn’t in Baseline yet. Add them first.")
+        return person_id
+
     def build_response(person_id: str, lang: str, report: dict | None, touched: set[str]) -> dict:
         readings = _call(services.load_readings, person_id)
         trends = sort_trends([compute_trend(group) for group in group_by_test(readings)])
@@ -115,20 +129,36 @@ def create_app(
             "reminder": reminder(readings, today()),
         }
 
+    @app.get("/api/people")
+    def get_people():
+        return {"people": [p.as_dict() for p in sort_people(_call(services.list_people))]}
+
+    @app.post("/api/people", status_code=201)
+    def post_person(body: NewPerson):
+        existing = _call(services.list_people)
+        try:
+            person = new_person(body.title or "", body.name or "", body.is_self, existing)
+        except SelfProfileExists as e:
+            _fail(409, str(e))
+        except PersonError as e:
+            _fail(400, str(e))
+        _call(services.save_person, person)
+        return person.as_dict()
+
     @app.get("/api/trends")
     def get_trends(person_id: str | None = None, lang: str | None = None):
-        person_id = _check_person(person_id)
+        person_id = check_person(person_id)
         lang = _check_lang(lang)
         return build_response(person_id, lang, report=None, touched=set())
 
     @app.get("/api/doctor")
     def get_doctor_view(person_id: str | None = None):
-        person_id = _check_person(person_id)
+        person_id = check_person(person_id)
         return doctor_view(person_id, _call(services.load_readings, person_id))
 
     @app.post("/api/chat")
     def post_chat(body: ChatRequest):
-        person_id = _check_person(body.person_id)
+        person_id = check_person(body.person_id)
         lang = _check_lang(body.lang)
         question = (body.question or "").strip()
         if not question or len(question) > MAX_QUESTION_CHARS:
@@ -147,7 +177,7 @@ def create_app(
         report_date: str | None = Form(None),
         lang: str | None = Form(None),
     ):
-        person_id = _check_person(person_id)
+        person_id = check_person(person_id)
         lang = _check_lang(lang)
         if report_date and not _is_iso_date(report_date):
             _fail(400, "Enter the report date as a calendar date.")
