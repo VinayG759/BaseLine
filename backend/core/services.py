@@ -12,6 +12,7 @@ from typing import Callable
 import boto3
 
 from core import store
+from core.chat import answer
 from core.extract import Extracted, extract
 from core.phrase import phrase as bedrock_phrase
 from core.trends import Reading
@@ -24,6 +25,7 @@ class Services:
     save_readings: Callable[[str, list[Reading], str, str], None]  # person, readings, report id, key
     load_readings: Callable[[str], list[Reading]]                  # person
     phrase: Callable[[dict[str, str], str], dict[str, str]] | None = None  # templates, lang -> sentences
+    chat: Callable[[str, str, list[Reading]], str] | None = None            # question, lang, readings -> reply
 
 
 def _setting(name: str) -> str:
@@ -63,4 +65,9 @@ def aws_services() -> Services:
     def phrase(templates, lang):
         return bedrock_phrase(templates, lang, _setting("MODEL_ID"), bedrock())
 
-    return Services(read_report, save_image, save_readings, load_readings, phrase)
+    def chat(question, lang, readings):
+        from strands.models.bedrock import BedrockModel   # imported here: only chat needs it
+        model = BedrockModel(model_id=_setting("MODEL_ID"), region_name=_setting("AWS_REGION"), temperature=0)
+        return answer(question, lang, readings, model)
+
+    return Services(read_report, save_image, save_readings, load_readings, phrase, chat)

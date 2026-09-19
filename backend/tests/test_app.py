@@ -284,3 +284,73 @@ def test_a_failing_phrase_service_still_answers_200_in_english(backend):
 
     assert r.status_code == 200
     assert r.json()["trends"][0]["summary"].startswith("First result on record.")
+
+
+# ---- Chat ----
+
+def chat_client(backend, chat):
+    return TestClient(create_app(Services(
+        read_report=backend.read_report, save_image=backend.save_image,
+        save_readings=backend.save_readings, load_readings=backend.load_readings, chat=chat,
+    )))
+
+
+def test_chat_answers_about_the_persons_own_readings(backend):
+    asked = []
+
+    def chat(question, lang, readings):
+        asked.append((question, lang, [r.value for r in readings]))
+        return "HbA1c has gone up."
+
+    client = chat_client(backend, chat)
+    upload(client, b"march")
+
+    r = client.post("/api/chat", json={"person_id": "amma", "question": "Anything rising?", "lang": "kn"})
+
+    assert r.status_code == 200
+    assert r.json() == {"person_id": "amma", "reply": "HbA1c has gone up."}
+    assert asked == [("Anything rising?", "kn", [5.6])]
+
+
+def test_chat_without_reports_says_so_without_calling_the_model(backend):
+    def chat(*args):
+        raise AssertionError("the model should not be called")
+
+    r = chat_client(backend, chat).post("/api/chat", json={"person_id": "appa", "question": "Hi"})
+
+    assert r.status_code == 200
+    assert "no reports" in r.json()["reply"].lower()
+
+
+@pytest.mark.parametrize("question", ["", "   ", "x" * 501])
+def test_chat_rejects_empty_or_overlong_questions(backend, question):
+    r = chat_client(backend, lambda *a: "ok").post("/api/chat", json={"person_id": "amma", "question": question})
+
+    assert r.status_code == 400
+    assert set(r.json()) == {"error"}
+
+
+def test_chat_checks_person_and_language(backend):
+    client = chat_client(backend, lambda *a: "ok")
+
+    assert client.post("/api/chat", json={"person_id": "Amma!", "question": "Hi"}).status_code == 400
+    assert client.post("/api/chat", json={"person_id": "amma", "question": "Hi", "lang": "fr"}).status_code == 400
+
+
+def test_chat_when_the_model_fails_answers_503_in_contract_shape(backend):
+    def broken(*args):
+        raise RuntimeError("Bedrock unavailable")
+
+    client = chat_client(backend, broken)
+    upload(client, b"march")
+
+    r = client.post("/api/chat", json={"person_id": "amma", "question": "Hi"})
+
+    assert r.status_code == 503
+    assert set(r.json()) == {"error"}
+
+
+def test_chat_when_no_model_is_configured_answers_503(client):
+    upload(client, b"march")
+
+    assert client.post("/api/chat", json={"person_id": "amma", "question": "Hi"}).status_code == 503

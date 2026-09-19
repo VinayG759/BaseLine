@@ -19,6 +19,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from mangum import Mangum
 
 from core.doctor import doctor_view
@@ -32,6 +33,8 @@ MAX_IMAGE_BYTES = 4 * 1024 * 1024
 PERSON_ID = re.compile(r"[a-z0-9-]{1,32}")
 LANGS = {"en", "kn", "hi"}
 IMAGE_FORMATS = {"image/jpeg": "jpeg", "image/png": "png"}
+MAX_QUESTION_CHARS = 500
+NO_REPORTS_REPLY = "There are no reports for this person yet. Add a lab report first, then ask again."
 UNAVAILABLE = "Baseline can’t reach its storage or reading service right now. Try again in a minute."
 
 log = logging.getLogger("baseline")
@@ -39,6 +42,12 @@ log = logging.getLogger("baseline")
 
 def _fail(status: int, sentence: str):
     raise HTTPException(status_code=status, detail=sentence)
+
+
+class ChatRequest(BaseModel):
+    person_id: str | None = None
+    question: str | None = None
+    lang: str | None = None
 
 
 def _call(slot: Callable, *args):
@@ -116,6 +125,20 @@ def create_app(
     def get_doctor_view(person_id: str | None = None):
         person_id = _check_person(person_id)
         return doctor_view(person_id, _call(services.load_readings, person_id))
+
+    @app.post("/api/chat")
+    def post_chat(body: ChatRequest):
+        person_id = _check_person(body.person_id)
+        lang = _check_lang(body.lang)
+        question = (body.question or "").strip()
+        if not question or len(question) > MAX_QUESTION_CHARS:
+            _fail(400, f"Type a question of up to {MAX_QUESTION_CHARS} characters.")
+        readings = _call(services.load_readings, person_id)
+        if not readings:
+            return {"person_id": person_id, "reply": NO_REPORTS_REPLY}
+        if services.chat is None:
+            _fail(503, UNAVAILABLE)
+        return {"person_id": person_id, "reply": _call(services.chat, question, lang, readings)}
 
     @app.post("/api/reports")
     async def post_report(
