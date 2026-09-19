@@ -70,3 +70,7 @@ def test_the_app_and_lambda_handler_exist_for_uvicorn_and_lambda():
 
     assert module.app is not None
     assert callable(module.handler)
+
+
+def test_aws_services_include_a_phrase_slot(no_settings):
+    assert callable(aws_services().phrase)

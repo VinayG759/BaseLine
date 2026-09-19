@@ -8,6 +8,7 @@ Run locally:  uvicorn app:app --reload --port 8000
 On Lambda:    handler "app.handler"
 """
 import logging
+import os
 import re
 import uuid
 from dataclasses import asdict, replace
@@ -75,7 +76,11 @@ def _is_iso_date(text: str) -> bool:
         return False
 
 
-def create_app(services: Services, today: Callable[[], date] = date.today) -> FastAPI:
+def create_app(
+    services: Services,
+    today: Callable[[], date] = date.today,
+    reword_english: bool = False,
+) -> FastAPI:
     app = FastAPI(title="Baseline")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
 
@@ -90,7 +95,7 @@ def create_app(services: Services, today: Callable[[], date] = date.today) -> Fa
     def build_response(person_id: str, lang: str, report: dict | None, touched: set[str]) -> dict:
         readings = _call(services.load_readings, person_id)
         trends = sort_trends([compute_trend(group) for group in group_by_test(readings)])
-        sentences = summarise(trends, lang)
+        sentences = summarise(trends, lang, services.phrase, reword_english)
         return {
             "person_id": person_id,
             "report": report,
@@ -155,5 +160,5 @@ def create_app(services: Services, today: Callable[[], date] = date.today) -> Fa
     return app
 
 
-app = create_app(aws_services())
+app = create_app(aws_services(), reword_english=os.environ.get("PHRASE") == "1")
 handler = Mangum(app)   # lets the same app run on Lambda

@@ -250,3 +250,37 @@ def test_trends_carry_a_next_test_reminder(client):
     r = upload(client, b"august")
 
     assert r.json()["reminder"] == {"last_report": "2026-08-08", "next_due": "2026-11-06", "overdue": False}
+
+
+def test_kannada_summaries_come_from_the_phrase_service(backend):
+    kn = "HbA1c ಸತತ 2 ಬಾರಿ ಏರಿದೆ (5.6 → 6.1 → 6.4 %)."
+    client = TestClient(create_app(Services(
+        read_report=backend.read_report, save_image=backend.save_image,
+        save_readings=backend.save_readings, load_readings=backend.load_readings,
+        phrase=lambda templates, lang: {"hba1c": kn} if lang == "kn" else templates,
+    )))
+    upload(client, b"march")
+    upload(client, b"august")
+
+    kannada = upload(client, b"september", lang="kn").json()["trends"][0]
+    english = client.get("/api/trends", params={"person_id": "amma"}).json()["trends"][0]
+
+    assert kannada["summary"] == kn
+    assert kannada["current"] == 6.4 and kannada["test_name"] == "HbA1c"
+    assert english["summary"].startswith("Gone up 2 times in a row")
+
+
+def test_a_failing_phrase_service_still_answers_200_in_english(backend):
+    def broken(templates, lang):
+        raise RuntimeError("Bedrock unavailable")
+
+    client = TestClient(create_app(Services(
+        read_report=backend.read_report, save_image=backend.save_image,
+        save_readings=backend.save_readings, load_readings=backend.load_readings, phrase=broken,
+    )))
+    upload(client, b"march")
+
+    r = client.get("/api/trends", params={"person_id": "amma", "lang": "hi"})
+
+    assert r.status_code == 200
+    assert r.json()["trends"][0]["summary"].startswith("First result on record.")

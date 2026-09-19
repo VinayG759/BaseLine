@@ -1,10 +1,15 @@
 """Stage 3 of the pipeline: turn a computed Trend into one plain sentence.
 
-Tonight this is a fixed template, so it is instant and always says the same
-thing. Tomorrow a model may reword or translate it, and this template stays
-as the fallback.
+The English template is fixed, instant, and always says the same thing. A
+model may reword or translate it; the template stays as the fallback.
 """
+import logging
+import re
+from typing import Callable
+
 from core.trends import Trend
+
+log = logging.getLogger("baseline")
 
 
 def _num(x: float) -> str:
@@ -47,6 +52,49 @@ def template_summary(t: Trend) -> str:
     return " ".join(part for part in (_change(t), _status(t)) if part)
 
 
-def summarise(trends: list[Trend], lang: str) -> dict[str, str]:
-    """test_key -> sentence. `lang` is accepted now and used once translation lands."""
-    return {t.test_key: template_summary(t) for t in trends}
+ASCII_NUMBER = re.compile(r"[0-9]+(?:\.[0-9]+)?")
+ANY_DIGIT = re.compile(r"\d")   # also matches Kannada and Devanagari digits
+
+
+def numbers_are_safe(sentence: str, template: str, test_name: str = "") -> bool:
+    """The model may choose words, never numbers: every number it writes must be in the template.
+
+    The test's own name is ignored first, because names carry digits (HbA1c, Vitamin B12).
+    """
+    if test_name:
+        sentence = re.sub(re.escape(test_name), " ", sentence, flags=re.IGNORECASE)
+    if any(not ch.isascii() for ch in ANY_DIGIT.findall(sentence)):
+        return False
+    allowed = {float(n) for n in ASCII_NUMBER.findall(template)}
+    return all(float(n) in allowed for n in ASCII_NUMBER.findall(sentence))
+
+
+def summarise(
+    trends: list[Trend],
+    lang: str,
+    phrase: Callable[[dict[str, str], str], dict[str, str]] | None = None,
+    reword_english: bool = False,
+) -> dict[str, str]:
+    """test_key -> sentence.
+
+    The English template is always built first. A model (`phrase`) rewrites it
+    for Kannada and Hindi, and for English only when `reword_english` is on.
+    Any sentence that fails the number check, and any failure of the model,
+    falls back to the English template, so this can never break a response.
+    """
+    templates = {t.test_key: template_summary(t) for t in trends}
+    names = {t.test_key: t.test_name for t in trends}
+    if phrase is None or not templates or (lang == "en" and not reword_english):
+        return templates
+    try:
+        written = phrase(dict(templates), lang)
+    except Exception:
+        log.exception("rewording failed; sending English templates")
+        return templates
+
+    result = {}
+    for key, template in templates.items():
+        sentence = written.get(key) if isinstance(written, dict) else None
+        ok = isinstance(sentence, str) and sentence.strip() and numbers_are_safe(sentence, template, names[key])
+        result[key] = sentence.strip() if ok else template
+    return result

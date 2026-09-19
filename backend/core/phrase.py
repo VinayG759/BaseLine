@@ -1,0 +1,40 @@
+"""Stage 3, model half: reword the computed facts warmly, in the reader's language.
+
+The model is handed the finished template sentences, never the raw history.
+It chooses words only; explain.summarise() checks its numbers afterwards and
+falls back to the template for any sentence that fails.
+"""
+import json
+
+from core.extract import strip_fence
+
+LANGUAGE_NAMES = {"en": "English", "kn": "Kannada", "hi": "Hindi"}
+
+PROMPT = """You rewrite lab-result facts for a family member with no medical training.
+
+You receive JSON: {"language": "...", "facts": {"<test_key>": "<one English fact sentence>"}}.
+Return ONLY a JSON object mapping each test_key to one sentence, with no other text.
+
+Rules for every sentence:
+- Write it in the requested language, warm and plain, at most 30 words.
+- Use only the facts given. Never add, change, round or convert a number.
+- Write every number with ordinary digits 0-9, exactly as given.
+- Keep test names and units exactly as given, untranslated.
+- Never diagnose, never name a disease, never suggest treatment, medicine or diet.
+- If the fact says the value is above or below the normal range, end by saying it is worth
+  discussing with a doctor."""
+
+
+def phrase(templates: dict[str, str], lang: str, model_id: str, client) -> dict[str, str]:
+    """`client` is a boto3 bedrock-runtime client. Raises ValueError if the reply isn't usable JSON."""
+    request = {"language": LANGUAGE_NAMES[lang], "facts": templates}
+    response = client.converse(
+        modelId=model_id,
+        system=[{"text": PROMPT}],
+        messages=[{"role": "user", "content": [{"text": json.dumps(request, ensure_ascii=False)}]}],
+        inferenceConfig={"temperature": 0, "maxTokens": 2000},
+    )
+    reply = json.loads(strip_fence(response["output"]["message"]["content"][0]["text"]))
+    if not isinstance(reply, dict):
+        raise ValueError("model reply was not a JSON object")
+    return {k: v for k, v in reply.items() if isinstance(v, str)}
