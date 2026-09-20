@@ -9,7 +9,7 @@ const MockAPI = (() => {
       person_id: "arjun-rao-1a2b",
       title: "Mr",
       name: "Arjun Rao",
-      is_self: true,
+      is_self: false,
       display_name: "Mr Arjun Rao"
     },
     {
@@ -20,15 +20,15 @@ const MockAPI = (() => {
       display_name: "Mr Ramesh Rao"
     },
     {
-      person_id: "sunita-rao-4f2a",
-      title: "Mrs",
-      name: "Sunita Rao",
-      is_self: false,
-      display_name: "Mrs Sunita Rao"
+      person_id: "lakshmamma-7b1c",
+      title: "Ms",
+      name: "Lakshmamma",
+      is_self: true,
+      display_name: "Ms Lakshmamma"
     }
   ];
 
-  // Tracks whether a report has been added for Mrs Sunita Rao
+  // Tracks whether a report has been added for Ms Lakshmamma
   let sunitaState = "before"; // "before" or "after"
   let justUploaded = false;
 
@@ -209,8 +209,8 @@ const MockAPI = (() => {
         throw err;
       }
 
-      // Only Mrs Sunita Rao has reports in mock mode
-      if (personId !== "sunita-rao-4f2a") {
+      // Only Ms Lakshmamma has reports in mock mode
+      if (personId !== "lakshmamma-7b1c") {
         return {
           person_id: personId,
           report: null,
@@ -319,8 +319,8 @@ const MockAPI = (() => {
         throw err;
       }
 
-      // Transition Sunita Rao to "after" state
-      if (personId === "sunita-rao-4f2a") {
+      // Transition Lakshmamma to "after" state
+      if (personId === "lakshmamma-7b1c") {
         sunitaState = "after";
         justUploaded = true;
       }
@@ -345,7 +345,7 @@ const MockAPI = (() => {
         throw err;
       }
 
-      if (personId !== "sunita-rao-4f2a") {
+      if (personId !== "lakshmamma-7b1c") {
         return {
           person_id: personId,
           report_dates: [],
@@ -417,7 +417,7 @@ const MockAPI = (() => {
         throw err;
       }
 
-      if (personId !== "sunita-rao-4f2a") {
+      if (personId !== "lakshmamma-7b1c") {
         return {
           person_id: personId,
           reply: "There are no reports for this person yet. Add a lab report first, then ask again."
@@ -499,7 +499,7 @@ const MockAPI = (() => {
       const personId = formData.get("person_id");
       let payload = {};
       try { payload = JSON.parse(formData.get("payload") || "{}"); } catch (e) {}
-      if (personId === "sunita-rao-4f2a") {
+      if (personId === "lakshmamma-7b1c") {
         sunitaState = "after";
       }
       justUploaded = true;
@@ -512,7 +512,7 @@ const MockAPI = (() => {
           report_id: "mock-report-0912",
           report_date: payload.report_date || "2026-09-12",
           lab_name: payload.lab_name || "Sri Sai Diagnostics",
-          patient_name: payload.patient_name || "Mrs Sunita Rao",
+          patient_name: payload.patient_name || "Ms Lakshmamma",
           summary: "Fasting Blood Glucose and HbA1c have risen above the normal range. Haemoglobin remains normal."
         }
       };
@@ -521,14 +521,14 @@ const MockAPI = (() => {
     // GET /api/reports: list reports
     async listReports(personId) {
       await sleep(200);
-      if (personId === "sunita-rao-4f2a") {
+      if (personId === "lakshmamma-7b1c") {
         const isAfter = sunitaState === "after";
         const reports = [
           ...(isAfter ? [{
             report_id: "mock-report-0912",
             report_date: "2026-09-12",
             lab_name: "Sri Sai Diagnostics",
-            patient_name: "Mrs. Sunita Rao",
+            patient_name: "Ms Lakshmamma",
             uploaded_at: "2026-09-12T08:30:00Z",
             height_cm: 158,
             weight_kg: 62,
@@ -538,7 +538,7 @@ const MockAPI = (() => {
             report_id: "mock-report-0808",
             report_date: "2026-08-08",
             lab_name: "Sri Sai Diagnostics",
-            patient_name: "Mrs. Sunita Rao",
+            patient_name: "Ms Lakshmamma",
             uploaded_at: "2026-08-08T09:00:00Z",
             height_cm: 158,
             weight_kg: 62,
@@ -548,7 +548,7 @@ const MockAPI = (() => {
             report_id: "mock-report-0304",
             report_date: "2026-03-04",
             lab_name: "Apollo Clinic",
-            patient_name: "Mrs. Sunita Rao",
+            patient_name: "Ms Lakshmamma",
             uploaded_at: "2026-03-04T10:15:00Z",
             height_cm: 158,
             weight_kg: 63,
@@ -567,7 +567,7 @@ const MockAPI = (() => {
         report_id: reportId,
         report_date: reportId.includes("0912") ? "2026-09-12" : reportId.includes("0808") ? "2026-08-08" : "2026-03-04",
         lab_name: reportId.includes("0304") ? "Apollo Clinic" : "Sri Sai Diagnostics",
-        patient_name: "Mrs. Sunita Rao",
+        patient_name: "Ms Lakshmamma",
         image_url: null,
         height_cm: 158,
         weight_kg: 62,
@@ -595,7 +595,7 @@ const MockAPI = (() => {
     // PUT /api/reports/{id}: edit report
     async editReport(reportId, body) {
       await sleep(300);
-      const personId = body.person_id || "sunita-rao-4f2a";
+      const personId = body.person_id || "lakshmamma-7b1c";
       const trendsResult = await this.getTrends(personId, body.lang || "en");
       return {
         ...trendsResult,
