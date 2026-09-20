@@ -136,7 +136,26 @@ const API = (() => {
 
   const q = (params) => new URLSearchParams(params).toString();
 
+  /**
+   * POST /api/analyze: read one report for a visitor with no account.
+   *
+   * Deliberately not `send()`: no token goes out, and a refusal must never bounce
+   * the visitor to the login page. Nothing is stored on the server either.
+   */
+  async function analyseWithoutAccount(formData) {
+    try {
+      const res = await fetch(`${CONFIG.apiUrl}/api/analyze`, { method: "POST", body: formData });
+      if (!res.ok) throw await handleErrorResponse(res);
+      return await res.json();
+    } catch (err) {
+      if (!err.status) err.message = DEFAULT_ERROR_MESSAGE();
+      throw err;
+    }
+  }
+
   return {
+    analyseWithoutAccount,
+
     /** PATCH /api/people/{id}: only the fields sent change. */
     updatePerson: (personId, changes) => call("PATCH", `/api/people/${encodeURIComponent(personId)}`, changes),
 

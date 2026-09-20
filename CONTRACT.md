@@ -1,6 +1,9 @@
-# Baseline API contract (version 6)
+# Baseline API contract (version 7)
 
 Shared by backend/ and web/. Change it only after both of you agree.
+
+**Version 7** adds `POST /api/analyze`: one report read for a visitor with **no account and no token**.
+Nothing is stored, and each visitor gets a few readings an hour.
 
 **Version 6** adds these:
 - **Profiles:** gender, age (which grows by itself each year), height and weight; `PATCH /api/people/{id}`.
@@ -175,6 +178,35 @@ POST {API}/api/reports/confirm
 | name matching | Titles (Mr, Mrs, Smt, Shri, Dr…) are ignored. The first name must match (one typo allowed for names of 5+ letters). The surname must match if both names have one, or match an initial ("S. Rao"). |
 | reviewed readings | 1–80 rows, name ≤ 60 characters, a numeric value, unit ≤ 20 characters, ref_low ≤ ref_high, no test twice. Otherwise **400** with a sentence. |
 | height/weight | Optional. When given, they update the person's profile as well. |
+
+## Quick analysis, no account (v7)
+
+The landing page offers two ways in: set up an account, or read one report right now. This is the second.
+It is the **only** endpoint that needs no `Authorization` header.
+
+```
+POST {API}/api/analyze
+     multipart/form-data:
+       file   image/jpeg or image/png, required, at most 4 MB
+       lang   en | kn | hi, optional, missing means en
+     → 200:
+     {
+       "report_date": "2026-09-12",          // null if no date is printed; the reading is dated today
+       "lab_name": "Sri Sai Diagnostics",    // may be null
+       "readings": [ {"test_key", "test_name", "value", "unit", "ref_low", "ref_high", "status"} ],
+       "trends":   [ ... same card shape as elsewhere, every one direction "first" ... ],
+       "summary":  "a plain-language paragraph about the whole report",
+       "saved": false
+     }
+```
+
+| Field | Meaning |
+|---|---|
+| stores nothing | No photo in S3, no values in DynamoDB, no account, no session. The page keeps the photo and the answer in memory and loses both when it closes. |
+| no trends | One report has nothing to compare with, so every `direction` is `"first"` and `history` holds a single point. The page says so and offers an account, rather than pretending otherwise. |
+| **429** | Each visitor address gets `FREE_ANALYSES_PER_HOUR` (5) readings an hour, because reading costs a model call and needs no login. The `error` sentence invites them to set up an account. Held in memory, so a restart clears it. |
+| other errors | Same sentences as the other upload endpoints: 400 no photo or bad language, 413 over 4 MB, 422 unreadable or no results found. |
+| logged-in users | Unaffected: the cap applies to this endpoint only. |
 
 ## Report history (v6)
 

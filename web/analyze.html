@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" data-i18n-title="analyze.pageTitle">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Baseline - Quick report analysis</title>
+  <meta name="description" content="Photograph one lab report and have every value explained against its normal range. Nothing is saved.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d9488">
+  <script>
+    try { document.documentElement.setAttribute("data-theme", localStorage.getItem("baseline_theme") || "light"); } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="topbar topbar-analyze">
+    <a href="index.html" class="icon-btn" aria-label="Back" data-i18n-aria="analyze.back"><span data-icon="arrow-left"></span></a>
+    <a href="index.html" class="brand-logo topbar-brand" aria-label="Baseline Home" data-i18n-aria="common.home">Baseline</a>
+    <select class="app-select lang-switch topbar-lang" data-lang-switch data-i18n-aria="common.language" aria-label="Language">
+      <option value="en">English</option>
+      <option value="kn">ಕನ್ನಡ</option>
+      <option value="hi">हिन्दी</option>
+    </select>
+  </header>
+
+  <main class="app-container">
+    <section id="mascot-container" class="mascot-section" aria-label="Doctor Mascot Assistant" data-i18n-aria="app.mascotAria">
+      <div class="mascot-avatar-wrapper">
+        <img class="mascot-avatar" src="mascot/wave.svg" alt="Cartoon doctor mascot" data-i18n-alt="common.mascotAlt">
+      </div>
+      <div class="mascot-bubble" role="status" aria-live="polite"></div>
+    </section>
+
+    <!-- Step 1: choose a photo -->
+    <div id="analyze-upload" class="card upload-card">
+      <h1 class="card-title" data-i18n="analyze.title">Quick report analysis</h1>
+      <p class="card-hint" data-i18n="analyze.lead">Take a photo of a lab report. Baseline reads every value and compares it with the normal range printed on that same report.</p>
+      <div class="upload-actions-grid">
+        <button type="button" id="take-photo-btn" class="btn btn-primary"><span data-icon="camera"></span><span data-i18n="upload.take">Take photo</span></button>
+        <button type="button" id="choose-gallery-btn" class="btn btn-secondary"><span data-icon="image"></span><span data-i18n="upload.gallery">From gallery</span></button>
+      </div>
+      <input type="file" id="camera-input" accept="image/*" capture="environment" hidden>
+      <input type="file" id="gallery-input" accept="image/*" hidden>
+      <div id="photo-preview-container" class="photo-preview-box" hidden>
+        <img id="photo-preview" src="" alt="Selected lab report preview" data-i18n-alt="upload.previewAlt">
+      </div>
+      <button type="button" id="analyze-btn" class="btn btn-primary btn-block" disabled><span data-i18n="analyze.read">Analyse report</span></button>
+      <div id="analyze-status" class="upload-status" role="status" aria-live="polite"></div>
+      <p class="privacy-note"><span data-icon="lock"></span><span data-i18n="analyze.privacy">Nothing is saved. When you leave this page, the photo and the results are gone.</span></p>
+    </div>
+
+    <!-- Step 2: what the report says -->
+    <div id="analyze-results" hidden>
+      <div class="card summary-card">
+        <h2 class="card-title" data-i18n="analyze.results">What this report says</h2>
+        <p id="analyze-meta" class="card-hint"></p>
+        <p id="analyze-summary" class="summary-text"></p>
+      </div>
+      <div id="analyze-trends" class="trends-container"></div>
+      <div class="card upsell-card">
+        <h2 class="card-title" data-i18n="analyze.upsellTitle">Only one report?</h2>
+        <p class="card-hint" data-i18n="analyze.upsell">Baseline's real value is the change between reports: a number that keeps rising, visit after visit. One photo cannot show that. Set up an account to keep your reports together.</p>
+        <a href="login.html" class="btn btn-primary btn-block" data-i18n="analyze.upsellCta">Set up your account</a>
+        <button type="button" id="analyze-again-btn" class="btn btn-secondary btn-block" data-i18n="analyze.again">Analyse another report</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer" role="contentinfo">
+    <p class="footer-disclaimer" data-i18n="common.boundary">Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.</p>
+    <p class="footer-meta" data-i18n="common.madeFor">Powered by AWS</p>
+  </footer>
+
+  <script src="i18n.js"></script>
+  <script src="icons.js"></script>
+  <script src="config.js"></script>
+  <script src="mock.js"></script>
+  <script src="api.js"></script>
+  <script src="mascot.js"></script>
+  <script src="cards.js"></script>
+  <script src="analyze.js"></script>
+</body>
+</html>

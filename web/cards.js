@@ -1,0 +1,249 @@
+/**
+ * Shared page helpers: the pieces that draw a result.
+ *
+ * Used by app.js (the signed-in app) and analyze.js (the quick analysis for visitors
+ * with no account), so a result card looks and reads the same on both pages.
+ * Needs i18n.js and icons.js before it; bindCardTaps also needs mascot.js.
+ */
+
+const $ = (id) => document.getElementById(id);
+const esc = (text) => escapeHtml(text);
+
+// ---------- Small helpers ----------
+
+// "12 Sept 2026", month names in the chosen language; the doctor view passes "en".
+function formatDateDisplay(dateStr, lang = I18n.lang()) {
+  return I18n.formatDate(dateStr, lang);
+}
+
+function getTodayDisplay() {
+  return formatDateDisplay(new Date().toISOString().slice(0, 10), "en");
+}
+
+function decimals(x) {
+  return (String(x).split(".")[1] || "").length;
+}
+
+/** a - b, shown with as many decimals as the printed numbers have (6.4 - 5.6 -> 0.8). */
+function difference(a, b) {
+  return Number((a - b).toFixed(Math.max(decimals(a), decimals(b))));
+}
+
+function initials(name) {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  return ((parts[0] || "?")[0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
+
+function statusLabel(status) {
+  return t(`status.${status || "unknown"}`);
+}
+
+/**
+ * Technical Concept: Canvas Resizing
+ * The photo is drawn onto an in-memory canvas at most 2000 px on its longest side and re-encoded as JPEG,
+ * so a 5-12 MB phone photo becomes about 1 MB while printed text stays sharp.
+ */
+async function shrinkImage(file, maxDimension = 2000, quality = 0.88) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error(t("error.photo")));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error(t("error.photo")));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error(t("error.photo")))), "image/jpeg", quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Every distinct report date for a person, oldest first (the dates live inside each trend's history). */
+function collectReportDates(data) {
+  if (!data || !Array.isArray(data.trends)) return [];
+  return [...new Set(data.trends.flatMap((tr) => (tr.history || []).map((h) => h.date)))].sort();
+}
+
+// ---------- Result visuals ----------
+
+/**
+ * The normal range as a bar, with a marker at this result: the eye sees at once whether the value sits
+ * inside the band and by how much it misses. One-sided ranges ("below 200") shade only their side.
+ */
+function rangeBar(value, low, high, status) {
+  const hasLow = typeof low === "number";
+  const hasHigh = typeof high === "number";
+  if (!hasLow && !hasHigh) return "";
+  const points = [value, low, high].filter((x) => typeof x === "number");
+  let min = Math.min(...points);
+  let max = Math.max(...points);
+  if (min === max) { min -= 1; max += 1; }
+  const pad = (max - min) * 0.3;
+  const a = min - pad;
+  const b = max + pad;
+  const pct = (x) => Math.max(0, Math.min(100, ((x - a) / (b - a)) * 100));
+  const zoneFrom = hasLow ? pct(low) : 0;
+  const zoneTo = hasHigh ? pct(high) : 100;
+  const labels = [];
+  if (hasLow) labels.push(`<span class="rb-limit" style="left:${pct(low).toFixed(1)}%">${esc(low)}</span>`);
+  if (hasHigh) labels.push(`<span class="rb-limit" style="left:${pct(high).toFixed(1)}%">${esc(high)}</span>`);
+  return `
+    <div class="range-bar" aria-hidden="true">
+      <div class="rb-track">
+        <div class="rb-zone" style="left:${zoneFrom.toFixed(1)}%;width:${(zoneTo - zoneFrom).toFixed(1)}%"></div>
+        <div class="rb-marker rb-${esc(status)}" style="left:${pct(value).toFixed(1)}%"></div>
+      </div>
+      <div class="rb-labels">${labels.join("")}</div>
+    </div>`;
+}
+
+/** "0.8 % above the upper limit" and friends. The arithmetic is done here, from the printed numbers. */
+function differenceText(value, low, high, unit, status) {
+  if (status === "high" && typeof high === "number") return t("diff.above", { diff: difference(value, high), unit });
+  if (status === "low" && typeof low === "number") return t("diff.below", { diff: difference(low, value), unit });
+  if (status === "normal") return t("diff.inside");
+  return t("diff.noRange");
+}
+
+/**
+ * Technical Concept: SVG Coordinate Space
+ * (0,0) is the top-left, so higher lab numbers get smaller y values to rise upwards on the chart.
+ */
+function createTrendSvgChart(trend) {
+  const width = 280;
+  const height = 72;
+  const padTop = 10;
+  const padBottom = 20;
+  const padX = 32;
+  const entries = Array.isArray(trend.history) && trend.history.length > 0
+    ? trend.history
+    : [{ date: null, value: trend.current }];
+  const history = entries.map((h) => h.value);
+  const dates = entries.map((h) => h.date).filter(Boolean);
+  const numbers = [...history];
+  if (typeof trend.ref_low === "number") numbers.push(trend.ref_low);
+  if (typeof trend.ref_high === "number") numbers.push(trend.ref_high);
+  let minVal = Math.min(...numbers);
+  let maxVal = Math.max(...numbers);
+  if (minVal === maxVal) {
+    minVal -= 1;
+    maxVal += 1;
+  } else {
+    const range = maxVal - minVal;
+    minVal -= range * 0.1;
+    maxVal += range * 0.1;
+  }
+  const getY = (val) => {
+    const clamped = Math.max(minVal, Math.min(maxVal, val));
+    return padTop + (1 - (clamped - minVal) / (maxVal - minVal)) * (height - padTop - padBottom);
+  };
+  const getX = (index, total) => (total <= 1 ? width / 2 : padX + (index / (total - 1)) * (width - 2 * padX));
+
+  let svg = "";
+  if (typeof trend.ref_low === "number" || typeof trend.ref_high === "number") {
+    const bandTop = getY(typeof trend.ref_high === "number" ? trend.ref_high : maxVal);
+    const bandBottom = getY(typeof trend.ref_low === "number" ? trend.ref_low : minVal);
+    svg += `<rect x="0" y="${bandTop.toFixed(1)}" width="${width}" height="${Math.max(2, bandBottom - bandTop).toFixed(1)}" class="svg-band"/>`;
+  }
+  const points = history.map((val, idx) => ({ x: getX(idx, history.length), y: getY(val) }));
+  if (points.length > 1) {
+    svg += `<path d="${points.map((p, i) => `${i ? "L" : "M"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ")}" class="svg-line" fill="none"/>`;
+  }
+  points.forEach((p, idx) => {
+    const latest = idx === points.length - 1;
+    const out = latest && (trend.status === "high" || trend.status === "low");
+    svg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${latest ? 5.5 : 3.5}" class="${out ? "svg-dot svg-dot-out" : latest ? "svg-dot svg-dot-latest" : "svg-dot"}"/>`;
+  });
+  if (dates.length > 0) {
+    svg += `<text x="${points[0].x.toFixed(1)}" y="${height - 4}" text-anchor="${points.length > 1 ? "start" : "middle"}" class="svg-date-label">${esc(formatDateDisplay(dates[0]))}</text>`;
+    if (points.length > 1 && dates.length > 1) {
+      svg += `<text x="${points[points.length - 1].x.toFixed(1)}" y="${height - 4}" text-anchor="end" class="svg-date-label">${esc(formatDateDisplay(dates[dates.length - 1]))}</text>`;
+    }
+  }
+  const label = t("card.chart", { test: trend.test_name, n: history.length, value: trend.current });
+  return `<svg viewBox="0 0 ${width} ${height}" class="trend-chart-svg" role="img" aria-label="${esc(label)}">${svg}</svg>`;
+}
+
+const DIRECTION_ICON = { rising: "arrow-up", falling: "arrow-down", stable: "arrow-right" };
+
+/** One result card: value and status, where it sits in the normal range, its history, a plain sentence. */
+function trendCardHtml(trend) {
+  const status = trend.status || "unknown";
+  const out = status === "high" || status === "low";
+  const dirIcon = DIRECTION_ICON[trend.direction];
+  const history = (trend.history || []).length > 1
+    ? `<div class="tc-history"><span class="tc-history-label">${esc(t("chart.history"))}</span>${createTrendSvgChart(trend)}</div>`
+    : "";
+  return `
+    <article class="card trend-card ${out ? "card-out-of-range" : ""} ${trend.updated ? "trend-card-updated" : ""}"
+             tabindex="0" role="button" aria-label="${esc(t("card.tap", { test: trend.test_name }))}"
+             data-summary="${esc(trend.summary)}">
+      <div class="tc-head">
+        <h3 class="test-name">${esc(trend.test_name)}</h3>
+        <span class="status-pill pill-${esc(status)}">${esc(statusLabel(status))}</span>
+      </div>
+      <div class="tc-value ${out ? "value-danger" : ""}">
+        <span class="test-value">${esc(trend.current)}</span>
+        <span class="test-unit">${esc(trend.unit)}</span>
+        ${dirIcon ? `<span class="tc-dir" aria-label="${esc(t("dir." + trend.direction))}">${Icons.svg(dirIcon)}</span>` : ""}
+      </div>
+      ${rangeBar(trend.current, trend.ref_low, trend.ref_high, status)}
+      <p class="tc-diff tc-diff-${esc(status)}">${esc(differenceText(trend.current, trend.ref_low, trend.ref_high, trend.unit, status))}</p>
+      ${history}
+      <p class="trend-summary">${esc(trend.summary)}</p>
+    </article>`;
+}
+
+function bindCardTaps(container) {
+  container.querySelectorAll(".trend-card").forEach((card) => {
+    const speak = () => {
+      const summary = card.getAttribute("data-summary");
+      if (summary) Mascot.say(summary, "pointing", { temporary: true });
+    };
+    card.addEventListener("click", speak);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        speak();
+      }
+    });
+  });
+}
+
+function rangeText(r) {
+  const limits = { low: r.ref_low, high: r.ref_high, unit: r.unit };
+  if (typeof r.ref_low === "number" && typeof r.ref_high === "number") return t("range.both", limits);
+  if (typeof r.ref_high === "number") return t("range.below", limits);
+  if (typeof r.ref_low === "number") return t("range.above", limits);
+  return t("range.none");
+}
+
+/** A values table for one report (read-only), each row with its status. */
+function valuesTableHtml(rows) {
+  return `
+    <table class="values-table">
+      <thead><tr><th>${esc(t("review.test"))}</th><th>${esc(t("review.value"))}</th><th></th></tr></thead>
+      <tbody>${rows.map((r) => `
+        <tr>
+          <td>${esc(r.test_name)}<span class="vt-range">${esc(rangeText(r))}</span></td>
+          <td class="vt-value">${esc(r.value)} <span class="test-unit">${esc(r.unit)}</span></td>
+          <td><span class="status-pill pill-${esc(r.status)}">${esc(statusLabel(r.status))}</span></td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+}

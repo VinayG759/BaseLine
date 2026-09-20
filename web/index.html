@@ -51,6 +51,46 @@
       margin-top: 6px;
     }
 
+    /* Two ways in: keep your reports, or read one right now. Each says what it does. */
+    .landing-choices {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 480px;
+      margin-top: 4px;
+    }
+    .choice {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-align: left;
+      padding: 16px;
+      border-radius: 16px;
+      border: 2px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-main);
+      text-decoration: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .choice:hover, .choice:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--accent);
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    }
+    .choice-main {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .choice-main .choice-note { color: rgba(255, 255, 255, 0.9); }
+    .choice-icon svg { width: 26px; height: 26px; flex-shrink: 0; }
+    .choice-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .choice-title { font-size: 1.1rem; font-weight: 800; }
+    .choice-note { font-size: 0.85rem; line-height: 1.4; color: var(--text-muted); }
+    .choice-go { margin-left: auto; opacity: 0.7; }
+    .choice-go svg { width: 20px; height: 20px; }
+
     /* The Problem Section */
     .problem-box {
       border-left: 4px solid var(--accent);
@@ -161,7 +201,24 @@
         <img class="landing-mascot" src="mascot/wave.svg" alt="Cartoon doctor mascot" data-i18n-alt="common.mascotAlt">
         <h1 class="landing-title" data-i18n="landing.title">Baseline: a health record that notices</h1>
         <p class="landing-tagline" data-i18n="landing.lead">Photograph your family's lab reports. Baseline remembers every result and tells you, in your language, when a number keeps moving the wrong way.</p>
-        <a href="login.html" class="btn btn-primary cta-btn" data-i18n="landing.cta">Open Baseline →</a>
+        <div class="landing-choices">
+          <a href="login.html" class="choice choice-main">
+            <span class="choice-icon" data-icon="user-plus"></span>
+            <span class="choice-text">
+              <span class="choice-title" data-i18n="landing.ctaSetup">Set up your account</span>
+              <span class="choice-note" data-i18n="landing.ctaSetupNote">Keep every report in one place and see what changes between them.</span>
+            </span>
+            <span class="choice-go" data-icon="chevron-right"></span>
+          </a>
+          <a href="analyze.html" class="choice choice-quick">
+            <span class="choice-icon" data-icon="camera"></span>
+            <span class="choice-text">
+              <span class="choice-title" data-i18n="landing.ctaQuick">Analyse a report</span>
+              <span class="choice-note" data-i18n="landing.ctaQuickNote">One photo, explained right now. Nothing is saved and no account is needed.</span>
+            </span>
+            <span class="choice-go" data-icon="chevron-right"></span>
+          </a>
+        </div>
       </section>
 
       <!-- The Problem in 3 Short Lines -->

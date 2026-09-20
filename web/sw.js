@@ -5,12 +5,13 @@
  * so the application loads instantly and functions reliably even during spotty connectivity or offline clinic visits.
  */
 
-const CACHE_NAME = "baseline-cache-v4";   // bump to throw away older cached copies
+const CACHE_NAME = "baseline-cache-v5";   // bump to throw away older cached copies
 const ASSETS_TO_CACHE = [
   "./",
   "app.html",
   "index.html",
   "login.html",
+  "analyze.html",
   "styles.css",
   "config.js",
   "i18n.js",
@@ -18,7 +19,9 @@ const ASSETS_TO_CACHE = [
   "mock.js",
   "api.js",
   "mascot.js",
+  "cards.js",
   "app.js",
+  "analyze.js",
   "manifest.json",
   "mascot/wave.svg",
   "mascot/reading.svg",
