@@ -119,3 +119,32 @@ def test_a_missing_or_blank_patient_name_is_none():
 def test_the_reading_instructions_ask_for_the_patient_name():
     from core.extract import PROMPT
     assert '"patient_name"' in PROMPT
+
+
+def test_a_photo_the_model_says_is_not_a_report_gets_its_own_sentence():
+    # The model is asked to judge this first: a selfie or a receipt should not come back
+    # as "couldn't be read", which sounds like the photo was simply blurry.
+    reply = json.dumps({"is_medical_report": False, "report_date": None, "lab_name": None,
+                        "patient_name": None, "readings": []})
+
+    with pytest.raises(ExtractionError) as raised:
+        parse(reply)
+
+    assert "does not look like a medical lab report" in str(raised.value)
+
+
+def test_a_report_the_model_confirms_is_read_as_usual():
+    reply = json.dumps({"is_medical_report": True, "report_date": "2026-09-12", "lab_name": "Lab",
+                        "patient_name": None, "readings": [HBA1C_ROW]})
+
+    assert parse(reply).readings[0].test_name == "HbA1c"
+
+
+def test_a_reply_without_the_new_field_is_still_read():
+    # Older replies (and the tests written before the check existed) carry no verdict at all.
+    assert parse(model_reply([HBA1C_ROW])).readings[0].test_name == "HbA1c"
+
+
+def test_the_instructions_ask_the_model_to_judge_the_photo_first():
+    from core.extract import PROMPT
+    assert '"is_medical_report"' in PROMPT
