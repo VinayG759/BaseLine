@@ -169,37 +169,6 @@ function collectReportDates(data) {
 
 // ---------- Result visuals ----------
 
-/**
- * The normal range as a bar, with a marker at this result: the eye sees at once whether the value sits
- * inside the band and by how much it misses. One-sided ranges ("below 200") shade only their side.
- */
-function rangeBar(value, low, high, status) {
-  const hasLow = typeof low === "number";
-  const hasHigh = typeof high === "number";
-  if (!hasLow && !hasHigh) return "";
-  const points = [value, low, high].filter((x) => typeof x === "number");
-  let min = Math.min(...points);
-  let max = Math.max(...points);
-  if (min === max) { min -= 1; max += 1; }
-  const pad = (max - min) * 0.3;
-  const a = min - pad;
-  const b = max + pad;
-  const pct = (x) => Math.max(0, Math.min(100, ((x - a) / (b - a)) * 100));
-  const zoneFrom = hasLow ? pct(low) : 0;
-  const zoneTo = hasHigh ? pct(high) : 100;
-  const labels = [];
-  if (hasLow) labels.push(`<span class="rb-limit" style="left:${pct(low).toFixed(1)}%">${esc(low)}</span>`);
-  if (hasHigh) labels.push(`<span class="rb-limit" style="left:${pct(high).toFixed(1)}%">${esc(high)}</span>`);
-  return `
-    <div class="range-bar" aria-hidden="true">
-      <div class="rb-track">
-        <div class="rb-zone" style="left:${zoneFrom.toFixed(1)}%;width:${(zoneTo - zoneFrom).toFixed(1)}%"></div>
-        <div class="rb-marker rb-${esc(status)}" style="left:${pct(value).toFixed(1)}%"></div>
-      </div>
-      <div class="rb-labels">${labels.join("")}</div>
-    </div>`;
-}
-
 /** "0.8 % above the upper limit" and friends. The arithmetic is done here, from the printed numbers. */
 function differenceText(value, low, high, unit, status) {
   if (status === "high" && typeof high === "number") return t("diff.above", { diff: difference(value, high), unit });
@@ -373,13 +342,8 @@ function trendCardHtml(trend) {
       <p class="tc-compare-text">${esc(comparisonText(trend))}</p>
     </div>`;
   // Every test gets bars, a single report included: one bar against the normal lines still
-  // shows where the value sits. The chart waits behind a button so the cards stay scannable.
-  const chartId = `bars-${Math.random().toString(36).slice(2, 9)}`;
-  const history = `
-    <button type="button" class="btn btn-secondary btn-sm tc-compare-btn" aria-expanded="false" aria-controls="${chartId}">
-      ${Icons.svg("bar-chart")}<span class="tc-compare-btn-label">${esc(t("compare.view"))}</span>
-    </button>
-    <div class="tc-chart" id="${chartId}" hidden>${comparisonChartHtml(trend)}</div>`;
+  // shows where the value sits. Shown straight away — it is the point of the card, not an extra.
+  const history = comparisonChartHtml(trend);
   // Once the comparison block says "up 11 since March", the written sentence repeats it.
   // It is kept only when it carries something the block doesn't: a run of moves the same
   // way, or the explanation of a first, uncompared result.
@@ -398,7 +362,6 @@ function trendCardHtml(trend) {
         <span class="test-unit">${esc(trend.unit)}</span>
         ${dirIcon ? `<span class="tc-dir" aria-label="${esc(t("dir." + trend.direction))}">${Icons.svg(dirIcon)}</span>` : ""}
       </div>
-      ${rangeBar(trend.current, trend.ref_low, trend.ref_high, status)}
       <p class="tc-diff tc-diff-${esc(status)}">${esc(differenceText(trend.current, trend.ref_low, trend.ref_high, trend.unit, status))}</p>
       ${comparison}
       ${history}
@@ -407,20 +370,6 @@ function trendCardHtml(trend) {
 }
 
 function bindCardTaps(container) {
-  // "View comparison" opens the bars for that one test. The click stops here, so tapping
-  // the button doesn't also count as tapping the card.
-  container.querySelectorAll(".tc-compare-btn").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const chart = document.getElementById(button.getAttribute("aria-controls"));
-      if (!chart) return;
-      const showing = chart.hidden;
-      chart.hidden = !showing;
-      button.setAttribute("aria-expanded", String(showing));
-      button.querySelector(".tc-compare-btn-label").textContent = t(showing ? "compare.hide" : "compare.view");
-    });
-  });
-
   container.querySelectorAll(".trend-card").forEach((card) => {
     const speak = () => {
       const summary = card.getAttribute("data-summary");
