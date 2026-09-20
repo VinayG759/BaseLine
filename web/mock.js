@@ -437,12 +437,9 @@ const MockAPI = (() => {
         throw new Error(simulatedErrors.upload);
       }
       const file = formData.get("file");
-      if (file && typeof isLikelyMedicalReport === "function") {
-        const check = await isLikelyMedicalReport(file);
-        if (!check.isMedical) {
-          throw new Error(t("error.notMedical"));
-        }
-      }
+      // No guessing from pixel colours here: it turned away genuine reports (a real one was
+      // refused on the deployed demo). Judging whether a photo is a lab report is the model's
+      // job on the real backend, which actually reads the image.
       const filename = (file && file.name ? file.name.toLowerCase() : "");
       if (filename && (filename.includes("dog") || filename.includes("cat") || filename.includes("selfie") || filename.includes("food") || filename.includes("receipt") || filename.includes("random") || filename.includes("invalid"))) {
         throw new Error(t("error.notMedical"));
@@ -472,12 +469,9 @@ const MockAPI = (() => {
         throw new Error(simulatedErrors.upload);
       }
       const file = formData.get("file");
-      if (file && typeof isLikelyMedicalReport === "function") {
-        const check = await isLikelyMedicalReport(file);
-        if (!check.isMedical) {
-          throw new Error(t("error.notMedical"));
-        }
-      }
+      // No guessing from pixel colours here: it turned away genuine reports (a real one was
+      // refused on the deployed demo). Judging whether a photo is a lab report is the model's
+      // job on the real backend, which actually reads the image.
       const filename = (file && file.name ? file.name.toLowerCase() : "");
       if (filename && (filename.includes("dog") || filename.includes("cat") || filename.includes("selfie") || filename.includes("food") || filename.includes("receipt") || filename.includes("random") || filename.includes("invalid"))) {
         throw new Error(t("error.notMedical"));
