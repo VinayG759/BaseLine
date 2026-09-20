@@ -30,6 +30,8 @@ const MockAPI = (() => {
 
   // Tracks whether a report has been added for Ms Lakshmamma
   let sunitaState = "before"; // "before" or "after"
+  // The last photo uploaded in this browser session; the demo has no storage behind it.
+  let uploadedPhotoUrl = null;
   let justUploaded = false;
 
   // Error simulation for Task 12 unhappy path testing
@@ -499,6 +501,11 @@ const MockAPI = (() => {
       const personId = formData.get("person_id");
       let payload = {};
       try { payload = JSON.parse(formData.get("payload") || "{}"); } catch (e) {}
+      // The demo has no S3 behind it, so the photo is kept in this browser for this visit only.
+      const photo = formData.get("file");
+      if (photo) {
+        try { uploadedPhotoUrl = URL.createObjectURL(photo); } catch (e) {}
+      }
       if (personId === "lakshmamma-7b1c") {
         sunitaState = "after";
       }
@@ -568,7 +575,7 @@ const MockAPI = (() => {
         report_date: reportId.includes("0912") ? "2026-09-12" : reportId.includes("0808") ? "2026-08-08" : "2026-03-04",
         lab_name: reportId.includes("0304") ? "Apollo Clinic" : "Sri Sai Diagnostics",
         patient_name: "Ms Lakshmamma",
-        image_url: null,
+        image_url: uploadedPhotoUrl,
         height_cm: 158,
         weight_kg: 62,
         readings: [
