@@ -751,9 +751,10 @@ const BaselineApp = {
     try {
       const response = await API.askChat(State.currentPerson.person_id, q, State.currentLang);
       thinking.remove();
-      const reply = I18n.server(response.reply);
-      add("mascot-reply-bubble", reply);
-      Mascot.say(reply, "pointing", { temporary: true });
+      add("mascot-reply-bubble", I18n.server(response.reply));
+      // The answer belongs in the conversation, and only there: Dr. Bindu goes back to
+      // what she was saying instead of repeating it above.
+      Mascot.restoreDefault();
     } catch (err) {
       thinking.remove();
       add("chat-error-bubble", err.message);
@@ -800,6 +801,10 @@ const BaselineApp = {
     this.renderProfile();
     this.renderPeople();
     this.renderHistory();
+    // Answers already on screen were written in the old language and can't be translated
+    // without asking again, so the conversation starts fresh. Nothing is lost: each
+    // question is answered on its own, with no memory of the ones before it.
+    this.clearChat();
     if (State.currentPerson) {
       this.loadTrends();
       this.renderLatestSummary();
