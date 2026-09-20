@@ -462,10 +462,13 @@ def create_app(
         No login, so reading is capped per visitor: the model call costs money.
         """
         lang = _check_lang(lang)
+        image, image_format = await read_image(file)
+        # Counted only once the upload is about to reach the model, which is the part that costs
+        # money. Choosing the wrong file, or one that is too large, must not use up someone's
+        # allowance: that would lock out a person fumbling with their photos, not an abuser.
         visitor = request.client.host if request.client else "unknown"
         if not free_analyses.allow(visitor, app.state.now()):
             _fail(429, TOO_MANY_FREE)
-        image, image_format = await read_image(file)
         extracted = extract_or_fail(image, image_format)
         if not extracted.readings:
             _fail(422, "No test results were found on this report. Try a sharper, flatter photo.")

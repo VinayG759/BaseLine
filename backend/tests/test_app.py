@@ -922,3 +922,22 @@ def test_the_guest_cap_never_blocks_someone_who_has_logged_in(backend):
 
     assert upload(member, b"september").status_code == 200
     assert preview(member, b"sunita-named").status_code == 200
+
+
+def test_a_wrong_file_does_not_use_up_a_visitor_s_free_readings(backend):
+    # Picking the wrong file costs nothing to read, so it must not count against the cap:
+    # otherwise someone fumbling with their photos is locked out like an abuser.
+    client = guest(backend, free_analyses_per_hour=2)
+    for _ in range(4):
+        client.post("/api/analyze", data={}, files={"file": ("notes.txt", b"not a photo", "text/plain")})
+    client.post("/api/analyze", data={})   # no file at all
+
+    assert [analyse(client).status_code for _ in range(3)] == [200, 200, 429]
+
+
+def test_a_photo_the_model_refuses_still_counts(backend):
+    # This one did reach the model, so it was paid for.
+    client = guest(backend, free_analyses_per_hour=2)
+    analyse(client, image=b"a holiday snap")   # 422 from the reader
+
+    assert [analyse(client).status_code for _ in range(2)] == [200, 429]
