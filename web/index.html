@@ -14,50 +14,90 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0d9488">
+  <script>
+    try { document.documentElement.setAttribute("data-theme", localStorage.getItem("baseline_theme") || "light"); } catch (e) {}
+  </script>
   <style>
+    /* ---------- Landing page ----------
+       Same building blocks as the app: sticky bar, cards, one column on a phone.
+       The page is wider than the app on a laptop, because it is read, not operated. */
+
+    .landing-body { background: var(--bg-app); }
+
+    /* The app's bar has a slot each side of a centred title; here it is brand then actions. */
+    .landing-topbar { grid-template-columns: 1fr auto; }
+    .landing-brand { justify-self: start; }
+
+    .landing-wrap {
+      width: 100%;
+      max-width: 460px;
+      margin: 0 auto;
+      padding: 16px 16px 8px 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* ---- Hero ---- */
     .landing-hero {
       text-align: center;
-      padding: 24px 12px 16px 12px;
+      padding: 22px 16px 20px 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
     }
     .landing-mascot {
-      width: 110px;
-      height: 110px;
+      width: 104px;
+      height: 104px;
       animation: floatMascot 3s ease-in-out infinite alternate;
     }
     @keyframes floatMascot {
       0% { transform: translateY(0); }
       100% { transform: translateY(-8px); }
     }
+    @media (prefers-reduced-motion: reduce) {
+      .landing-mascot { animation: none; }
+    }
+
+    /* "Powered by AWS" sits here, with room, instead of fighting the header. */
+    .powered-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-light);
+      color: var(--accent-hover);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    [data-theme="dark"] .powered-pill { color: #ccfbf1; }
+
     .landing-title {
-      font-size: 1.8rem;
+      font-size: 1.75rem;
       font-weight: 900;
       line-height: 1.25;
       letter-spacing: -0.5px;
+      margin: 0;
     }
     .landing-tagline {
-      font-size: 1.05rem;
+      font-size: 1rem;
       color: var(--text-muted);
-      max-width: 480px;
-      line-height: 1.5;
-    }
-    .cta-btn {
-      font-size: 1.15rem;
-      padding: 16px 32px;
-      min-width: 220px;
-      margin-top: 6px;
+      max-width: 420px;
+      line-height: 1.55;
+      margin: 0;
     }
 
-    /* Two ways in: keep your reports, or read one right now. Each says what it does. */
+    /* ---- The two ways in ---- */
     .landing-choices {
       display: flex;
       flex-direction: column;
       gap: 12px;
       width: 100%;
-      max-width: 480px;
       margin-top: 4px;
     }
     .choice {
@@ -66,7 +106,7 @@
       gap: 14px;
       text-align: left;
       padding: 16px;
-      border-radius: 16px;
+      border-radius: 18px;
       border: 2px solid var(--border-color);
       background: var(--bg-card);
       color: var(--text-main);
@@ -76,77 +116,112 @@
     .choice:hover, .choice:focus-visible {
       transform: translateY(-2px);
       border-color: var(--accent);
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+      box-shadow: var(--shadow-lg);
     }
     .choice-main {
       background: var(--accent);
-      border-color: var(--accent);
+      border-color: var(--accent-active);
       color: #fff;
+      box-shadow: 0 4px 0 var(--accent-shadow);
     }
-    .choice-main .choice-note { color: rgba(255, 255, 255, 0.9); }
+    .choice-main:hover, .choice-main:focus-visible { border-color: var(--accent-active); }
+    .choice-main .choice-note { color: rgba(255, 255, 255, 0.92); }
     .choice-icon svg { width: 26px; height: 26px; flex-shrink: 0; }
     .choice-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-    .choice-title { font-size: 1.1rem; font-weight: 800; }
-    .choice-note { font-size: 0.85rem; line-height: 1.4; color: var(--text-muted); }
+    .choice-title { font-size: 1.08rem; font-weight: 800; line-height: 1.3; }
+    .choice-note { font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
     .choice-go { margin-left: auto; opacity: 0.7; }
     .choice-go svg { width: 20px; height: 20px; }
 
-    /* The Problem Section */
+    /* ---- Section headings ---- */
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .section-head::after {
+      content: "";
+      flex: 1;
+      height: 2px;
+      background: var(--border-color);
+      border-radius: 2px;
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 900;
+      letter-spacing: -0.2px;
+      margin: 0;
+    }
+
+    /* ---- Why Baseline exists ---- */
     .problem-box {
-      border-left: 4px solid var(--accent);
+      border-left: 5px solid var(--accent);
       background-color: var(--bg-card-subtle);
-      border-radius: 12px;
-      padding: 16px;
-      margin: 8px 0;
+      border-radius: 16px;
+      padding: 16px 18px;
     }
     .problem-list {
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+    }
+    .problem-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
       font-size: 0.95rem;
       font-weight: 700;
+      line-height: 1.45;
       color: var(--text-main);
     }
     .problem-item::before {
-      content: "•";
-      color: var(--accent);
-      margin-right: 8px;
-      font-weight: 900;
+      content: "";
+      width: 8px;
+      height: 8px;
+      margin-top: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
     }
+    .problem-item:last-child { color: var(--accent-hover); }
+    [data-theme="dark"] .problem-item:last-child { color: var(--accent-hover); }
 
-    /* How It Works (3 Steps) */
+    /* ---- How it works ---- */
     .steps-grid {
       display: grid;
       grid-template-columns: 1fr;
       gap: 12px;
     }
-    @media (min-width: 600px) {
-      .steps-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-    }
     .step-card {
-      text-align: center;
-      padding: 16px 12px;
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      grid-template-rows: auto auto;
       align-items: center;
-      gap: 8px;
+      gap: 4px 14px;
+      padding: 16px;
+      text-align: left;
     }
-    .step-icon {
-      font-size: 2.2rem;
+    .step-badge {
+      grid-row: 1 / 3;
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: var(--accent-light);
+      color: var(--accent-hover);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
     }
-    .step-title {
-      font-size: 1.05rem;
-      font-weight: 800;
-    }
-    .step-desc {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
+    .step-badge svg { width: 22px; height: 22px; }   /* the step number is already in the title */
+    .step-title { font-size: 1rem; font-weight: 800; margin: 0; align-self: end; }
+    .step-desc { font-size: 0.86rem; color: var(--text-muted); line-height: 1.45; margin: 0; align-self: start; }
 
-    /* Feature Row */
+    /* ---- What it gives you ---- */
     .features-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -155,136 +230,172 @@
     .feature-chip {
       background-color: var(--bg-card);
       border: 2px solid var(--border-color);
-      border-radius: 16px;
-      padding: 14px 12px;
+      border-radius: 18px;
+      padding: 16px 12px;
       text-align: center;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      align-items: center;
+      gap: 6px;
     }
     .feature-icon {
-      font-size: 1.5rem;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: var(--accent-light);
+      color: var(--accent-hover);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .feature-title {
-      font-size: 0.92rem;
-      font-weight: 800;
+    .feature-icon svg { width: 20px; height: 20px; }
+    .feature-title { font-size: 0.9rem; font-weight: 800; line-height: 1.3; }
+    .feature-desc { font-size: 0.76rem; color: var(--text-muted); line-height: 1.4; }
+
+    /* ---- Closing line ---- */
+    .landing-close {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 16px;
     }
-    .feature-desc {
-      font-size: 0.75rem;
-      color: var(--text-muted);
+    .landing-close .btn { width: 100%; max-width: 320px; }
+
+    /* ---- Wider screens: the page spreads out instead of stretching one column ---- */
+    @media (min-width: 720px) {
+      .landing-wrap { max-width: 900px; padding: 24px 24px 12px 24px; gap: 34px; }
+      .landing-hero { padding: 34px 32px 30px 32px; }
+      .landing-mascot { width: 126px; height: 126px; }
+      .landing-title { font-size: 2.3rem; }
+      .landing-tagline { font-size: 1.1rem; max-width: 560px; }
+      .landing-choices { flex-direction: row; max-width: 720px; }
+      .choice { flex: 1; align-items: flex-start; }
+      .choice-go { display: none; }
+      .steps-grid { grid-template-columns: repeat(3, 1fr); }
+      .step-card { grid-template-columns: 1fr; grid-template-rows: auto auto auto; justify-items: center; text-align: center; gap: 10px; padding: 22px 16px; }
+      .step-badge { grid-row: auto; }
+      .features-grid { grid-template-columns: repeat(4, 1fr); }
     }
   </style>
 </head>
-<body>
-  <div class="app-container">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="header-left">
-        <a href="index.html" class="brand-logo" aria-label="Baseline Home" data-i18n-aria="common.home">
-          <span>Baseline</span>
-          <span class="brand-badge" data-i18n="landing.badge">AWS Hackathon</span>
+<body class="landing-body">
+  <!-- Brand on the left, language and theme on the right: nothing shares a corner. -->
+  <header class="topbar landing-topbar">
+    <a href="index.html" class="brand-logo topbar-brand landing-brand" aria-label="Baseline Home" data-i18n-aria="common.home">Baseline</a>
+    <div class="header-actions">
+      <select class="app-select lang-switch topbar-lang" data-lang-switch data-i18n-aria="common.language" aria-label="Language">
+        <option value="en">English</option>
+        <option value="kn">ಕನ್ನಡ</option>
+        <option value="hi">हिन्दी</option>
+      </select>
+      <button id="theme-toggle" class="icon-btn" aria-label="Toggle dark mode" data-i18n-aria="common.theme"></button>
+    </div>
+  </header>
+
+  <main class="landing-wrap">
+    <!-- Hero -->
+    <section class="card landing-hero">
+      <img class="landing-mascot" src="mascot/wave.svg" alt="Cartoon doctor mascot" data-i18n-alt="common.mascotAlt">
+      <span class="powered-pill" data-i18n="landing.badge">Powered by AWS</span>
+      <h1 class="landing-title" data-i18n="landing.title">Baseline: a health record that notices</h1>
+      <p class="landing-tagline" data-i18n="landing.lead">Photograph your family's lab reports. Baseline remembers every result and tells you, in your language, when a number keeps moving the wrong way.</p>
+      <div class="landing-choices">
+        <a href="login.html" class="choice choice-main" id="main-choice">
+          <span class="choice-icon" id="main-choice-icon" data-icon="user-plus"></span>
+          <span class="choice-text">
+            <span class="choice-title" id="main-choice-title" data-i18n="landing.ctaSetup">Set up your account</span>
+            <span class="choice-note" id="main-choice-note" data-i18n="landing.ctaSetupNote">Keep every report in one place and see what changes between them.</span>
+          </span>
+          <span class="choice-go" data-icon="chevron-right"></span>
+        </a>
+        <a href="analyze.html" class="choice choice-quick">
+          <span class="choice-icon" data-icon="camera"></span>
+          <span class="choice-text">
+            <span class="choice-title" data-i18n="landing.ctaQuick">Analyse a report</span>
+            <span class="choice-note" data-i18n="landing.ctaQuickNote">One photo, explained right now. Nothing is saved and no account is needed.</span>
+          </span>
+          <span class="choice-go" data-icon="chevron-right"></span>
         </a>
       </div>
-      <div class="header-actions">
-        <select class="app-select lang-switch" data-lang-switch data-i18n-aria="common.language" aria-label="Language">
-          <option value="en">English</option>
-          <option value="kn">ಕನ್ನಡ</option>
-          <option value="hi">हिन्दी</option>
-        </select>
-        <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode" data-i18n-aria="common.theme"></button>
-      </div>
-    </header>
+    </section>
 
-    <!-- Hero Section (Screen A) -->
-    <main>
-      <section class="card landing-hero">
-        <img class="landing-mascot" src="mascot/wave.svg" alt="Cartoon doctor mascot" data-i18n-alt="common.mascotAlt">
-        <h1 class="landing-title" data-i18n="landing.title">Baseline: a health record that notices</h1>
-        <p class="landing-tagline" data-i18n="landing.lead">Photograph your family's lab reports. Baseline remembers every result and tells you, in your language, when a number keeps moving the wrong way.</p>
-        <div class="landing-choices">
-          <a href="login.html" class="choice choice-main">
-            <span class="choice-icon" data-icon="user-plus"></span>
-            <span class="choice-text">
-              <span class="choice-title" data-i18n="landing.ctaSetup">Set up your account</span>
-              <span class="choice-note" data-i18n="landing.ctaSetupNote">Keep every report in one place and see what changes between them.</span>
-            </span>
-            <span class="choice-go" data-icon="chevron-right"></span>
-          </a>
-          <a href="analyze.html" class="choice choice-quick">
-            <span class="choice-icon" data-icon="camera"></span>
-            <span class="choice-text">
-              <span class="choice-title" data-i18n="landing.ctaQuick">Analyse a report</span>
-              <span class="choice-note" data-i18n="landing.ctaQuickNote">One photo, explained right now. Nothing is saved and no account is needed.</span>
-            </span>
-            <span class="choice-go" data-icon="chevron-right"></span>
-          </a>
-        </div>
-      </section>
-
-      <!-- The Problem in 3 Short Lines -->
-      <section class="problem-box" aria-label="Why Baseline exists" data-i18n-aria="landing.whyAria">
+    <!-- Why Baseline exists -->
+    <section aria-label="Why Baseline exists" data-i18n-aria="landing.whyAria">
+      <div class="problem-box">
         <ul class="problem-list">
           <li class="problem-item" data-i18n="landing.why1">Reports sit in a drawer.</li>
           <li class="problem-item" data-i18n="landing.why2">Each one gets a glance.</li>
           <li class="problem-item" data-i18n="landing.why3">The warning is in the change BETWEEN reports.</li>
         </ul>
-      </section>
+      </div>
+    </section>
 
-      <!-- How It Works (3 Steps) -->
-      <section aria-label="How Baseline works" data-i18n-aria="landing.howAria" style="margin-top: 8px;">
-        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;" data-i18n="landing.how">How It Works</h2>
-        <div class="steps-grid">
-          <div class="card step-card">
-            <span class="step-icon" data-icon="camera"></span>
-            <h3 class="step-title" data-i18n="landing.step1">1. Photograph</h3>
-            <p class="step-desc" data-i18n="landing.step1Text">Snap a photo of your printed lab test report with your camera.</p>
-          </div>
-          <div class="card step-card">
-            <span class="step-icon" data-icon="sparkles"></span>
-            <h3 class="step-title" data-i18n="landing.step2">2. Remembers</h3>
-            <p class="step-desc" data-i18n="landing.step2Text">Reads every number and connects it to your earlier reports.</p>
-          </div>
-          <div class="card step-card">
-            <span class="step-icon" data-icon="trending-up"></span>
-            <h3 class="step-title" data-i18n="landing.step3">3. Notices</h3>
-            <p class="step-desc" data-i18n="landing.step3Text">Charts each result against its normal range and points out numbers that keep rising.</p>
-          </div>
+    <!-- How it works -->
+    <section aria-label="How Baseline works" data-i18n-aria="landing.howAria">
+      <div class="section-head">
+        <h2 class="section-title" data-i18n="landing.how">How It Works</h2>
+      </div>
+      <div class="steps-grid">
+        <div class="card step-card">
+          <span class="step-badge" data-step="1" data-icon="camera"></span>
+          <h3 class="step-title" data-i18n="landing.step1">1. Photograph</h3>
+          <p class="step-desc" data-i18n="landing.step1Text">Snap a photo of your printed lab test report with your camera.</p>
         </div>
-      </section>
+        <div class="card step-card">
+          <span class="step-badge" data-step="2" data-icon="sparkles"></span>
+          <h3 class="step-title" data-i18n="landing.step2">2. Remembers</h3>
+          <p class="step-desc" data-i18n="landing.step2Text">Reads every number and connects it to your earlier reports.</p>
+        </div>
+        <div class="card step-card">
+          <span class="step-badge" data-step="3" data-icon="trending-up"></span>
+          <h3 class="step-title" data-i18n="landing.step3">3. Notices</h3>
+          <p class="step-desc" data-i18n="landing.step3Text">Charts each result against its normal range and points out numbers that keep rising.</p>
+        </div>
+      </div>
+    </section>
 
-      <!-- Feature Highlights -->
-      <section aria-label="Key features" data-i18n-aria="landing.featuresAria" style="margin-top: 14px;">
-        <h2 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 12px; text-align: center;" data-i18n="landing.features">Built for Families &amp; Doctors</h2>
-        <div class="features-grid">
-          <div class="feature-chip">
-            <span class="feature-icon" data-icon="globe"></span>
-            <span class="feature-title">English / ಕನ್ನಡ / हिन्दी</span>
-            <span class="feature-desc" data-i18n="landing.f1Text">Summaries in your mother tongue</span>
-          </div>
-          <div class="feature-chip">
-            <span class="feature-icon" data-icon="stethoscope"></span>
-            <span class="feature-title" data-i18n="landing.f2">Doctor View</span>
-            <span class="feature-desc" data-i18n="landing.f2Text">Clinical tables ready for consultation</span>
-          </div>
-          <div class="feature-chip">
-            <span class="feature-icon" data-icon="message"></span>
-            <span class="feature-title" data-i18n="landing.f3">Ask Questions</span>
-            <span class="feature-desc" data-i18n="landing.f3Text">Clear answers straight from your reports</span>
-          </div>
-          <div class="feature-chip">
-            <span class="feature-icon" data-icon="calendar"></span>
-            <span class="feature-title" data-i18n="landing.f4">Next-Test Reminders</span>
-            <span class="feature-desc" data-i18n="landing.f4Text">Gentle reminders when the next test is due</span>
-          </div>
+    <!-- What it gives you -->
+    <section aria-label="Key features" data-i18n-aria="landing.featuresAria">
+      <div class="section-head">
+        <h2 class="section-title" data-i18n="landing.features">Built for Families &amp; Doctors</h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature-chip">
+          <span class="feature-icon" data-icon="globe"></span>
+          <span class="feature-title">English / ಕನ್ನಡ / हिन्दी</span>
+          <span class="feature-desc" data-i18n="landing.f1Text">Summaries in your mother tongue</span>
         </div>
-      </section>
-    </main>
-  </div>
+        <div class="feature-chip">
+          <span class="feature-icon" data-icon="stethoscope"></span>
+          <span class="feature-title" data-i18n="landing.f2">Doctor View</span>
+          <span class="feature-desc" data-i18n="landing.f2Text">Clinical tables ready for consultation</span>
+        </div>
+        <div class="feature-chip">
+          <span class="feature-icon" data-icon="message"></span>
+          <span class="feature-title" data-i18n="landing.f3">Ask Questions</span>
+          <span class="feature-desc" data-i18n="landing.f3Text">Clear answers straight from your reports</span>
+        </div>
+        <div class="feature-chip">
+          <span class="feature-icon" data-icon="calendar"></span>
+          <span class="feature-title" data-i18n="landing.f4">Next-Test Reminders</span>
+          <span class="feature-desc" data-i18n="landing.f4Text">Gentle reminders when the next test is due</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- One last way in, for anyone who read to the bottom -->
+    <section class="card landing-close" aria-label="Get started" data-i18n-aria="landing.howAria">
+      <a href="login.html" class="btn btn-primary" id="closing-choice" data-i18n="landing.ctaSetup">Set up your account</a>
+      <a href="analyze.html" class="btn btn-secondary" data-i18n="landing.ctaQuick">Analyse a report</a>
+    </section>
+  </main>
 
   <!-- Medical Disclaimer Footer (Mandatory across all screens) -->
   <footer class="app-footer" role="contentinfo">
     <p class="footer-disclaimer" data-i18n="common.boundary">Baseline explains and tracks lab results. It does not diagnose or recommend treatment. Talk to a doctor about any result.</p>
-    <p class="footer-meta" data-i18n="common.madeFor">Made for the AWS student hackathon</p>
+    <p class="footer-meta" data-i18n="common.madeFor">Powered by AWS</p>
   </footer>
 
   <script src="i18n.js"></script>
@@ -292,6 +403,46 @@
   <script src="mascot.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", () => Mascot.decorate(document.querySelector(".landing-mascot"), "wave"));
+  </script>
+
+  <!--
+    Someone already signed in on this phone should not be offered an account they have.
+    The first button then opens their reports instead. The token is only read, never sent:
+    if it has expired, the app page asks them to log in again as usual.
+  -->
+  <script>
+    (() => {
+      const signedIn = (() => {
+        try { return !!localStorage.getItem("baseline_token"); } catch { return false; }
+      })();
+      if (!signedIn) return;
+      const name = (() => {
+        try { return (localStorage.getItem("baseline_username") || "").trim(); } catch { return ""; }
+      })();
+
+      const swap = () => {
+        const choice = document.getElementById("main-choice");
+        const closing = document.getElementById("closing-choice");
+        const noteKey = name ? "landing.ctaOpenNote" : "landing.ctaOpenNoName";
+        choice.href = "app.html";
+        closing.href = "app.html";
+        document.getElementById("main-choice-title").textContent = t("landing.ctaOpen");
+        document.getElementById("main-choice-note").textContent = t(noteKey, { name });
+        closing.textContent = t("landing.ctaOpen");
+        document.getElementById("main-choice-icon").innerHTML = Icons.svg("file-text");
+        // Keep the keys on the elements so a language change redraws the right words.
+        document.getElementById("main-choice-title").dataset.i18n = "landing.ctaOpen";
+        document.getElementById("main-choice-note").dataset.i18n = noteKey;
+        closing.dataset.i18n = "landing.ctaOpen";
+      };
+
+      document.addEventListener("DOMContentLoaded", swap);
+      // I18n.apply() on a language change rewrites from the keys, so the name goes back in after it.
+      document.addEventListener("baseline:lang", () => {
+        const noteKey = name ? "landing.ctaOpenNote" : "landing.ctaOpenNoName";
+        document.getElementById("main-choice-note").textContent = t(noteKey, { name });
+      });
+    })();
   </script>
 
   <!-- Theme Toggle Controller -->
@@ -314,17 +465,7 @@
           drawIcon(next);
         });
       }
-
-      // Register Service Worker for offline/PWA capability
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("sw.js").catch((err) => {
-            console.log("Service worker registration skipped:", err);
-          });
-        });
-      }
     })();
-
   </script>
 </body>
 </html>
