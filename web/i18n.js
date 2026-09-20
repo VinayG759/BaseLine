@@ -268,6 +268,13 @@ const I18n = (() => {
       "diff.inside": "Within the normal range",
       "diff.noRange": "No normal range was printed",
       "chart.history": "History",
+      "compare.title": "Compared with last time",
+      "compare.up": "Up {diff} {unit} since {date} ({from} to {to})",
+      "compare.down": "Down {diff} {unit} since {date} ({from} to {to})",
+      "compare.same": "Exactly the same as on {date} ({to})",
+      "compare.first": "This is the first report for this test, so there is nothing to compare it with yet.",
+      "chart.eachBar": "One bar for each report. The shaded band is the normal range.",
+      "chart.barsLabel": "{test}: one bar per report, {n} in total, most recent {value} {unit}",
       "chart.you": "You",
       "doctor.print": "Print",
       "doctor.back": "Back",
@@ -529,6 +536,13 @@ const I18n = (() => {
       "diff.inside": "ಸಾಮಾನ್ಯ ಮಿತಿಯೊಳಗಿದೆ",
       "diff.noRange": "ಸಾಮಾನ್ಯ ಮಿತಿ ಮುದ್ರಿತವಾಗಿಲ್ಲ",
       "chart.history": "ಇತಿಹಾಸ",
+      "compare.title": "ಕಳೆದ ಬಾರಿಗೆ ಹೋಲಿಸಿದರೆ",
+      "compare.up": "{date} ರಿಂದ {diff} {unit} ಏರಿಕೆ ({from} ರಿಂದ {to})",
+      "compare.down": "{date} ರಿಂದ {diff} {unit} ಇಳಿಕೆ ({from} ರಿಂದ {to})",
+      "compare.same": "{date} ರಂದು ಇದ್ದಷ್ಟೇ ಇದೆ ({to})",
+      "compare.first": "ಈ ಪರೀಕ್ಷೆಯ ಮೊದಲ ವರದಿ ಇದು, ಹೋಲಿಸಲು ಇನ್ನೂ ಏನೂ ಇಲ್ಲ.",
+      "chart.eachBar": "ಪ್ರತಿ ವರದಿಗೆ ಒಂದು ಕಂಬ. ಬಣ್ಣದ ಪಟ್ಟಿ ಸಾಮಾನ್ಯ ವ್ಯಾಪ್ತಿ.",
+      "chart.barsLabel": "{test}: ಪ್ರತಿ ವರದಿಗೆ ಒಂದು ಕಂಬ, ಒಟ್ಟು {n}, ಇತ್ತೀಚಿನದು {value} {unit}",
       "chart.you": "ನೀವು",
       "doctor.print": "ಮುದ್ರಿಸಿ",
       "doctor.back": "ಹಿಂದೆ",
@@ -790,6 +804,13 @@ const I18n = (() => {
       "diff.inside": "सामान्य सीमा के भीतर",
       "diff.noRange": "सामान्य सीमा नहीं छपी",
       "chart.history": "इतिहास",
+      "compare.title": "पिछली बार से तुलना",
+      "compare.up": "{date} से {diff} {unit} ऊपर ({from} से {to})",
+      "compare.down": "{date} से {diff} {unit} नीचे ({from} से {to})",
+      "compare.same": "{date} जैसा ही है ({to})",
+      "compare.first": "इस जाँच की यह पहली रिपोर्ट है, तुलना के लिए अभी कुछ नहीं है।",
+      "chart.eachBar": "हर रिपोर्ट के लिए एक पट्टी। रंगीन पट्टी सामान्य सीमा है।",
+      "chart.barsLabel": "{test}: हर रिपोर्ट की एक पट्टी, कुल {n}, नवीनतम {value} {unit}",
       "chart.you": "आप",
       "doctor.print": "प्रिंट करें",
       "doctor.back": "वापस",
@@ -890,6 +911,16 @@ const I18n = (() => {
     }).format(new Date(Date.UTC(y, m - 1, d)));
   }
 
+  /** "12 Sep" — day and month only, for the cramped label under a bar on a chart. */
+  function formatDateShort(isoDate, forLang = current) {
+    if (!isoDate) return "";
+    const [y, m, d] = isoDate.split("-").map(Number);
+    if (!y || !m || !d) return isoDate;
+    return new Intl.DateTimeFormat(LOCALES[forLang] || "en-IN", {
+      day: "numeric", month: "short", numberingSystem: "latn", timeZone: "UTC"
+    }).format(new Date(Date.UTC(y, m - 1, d)));
+  }
+
   /** True when neither this language nor English has the key: an older i18n.js, or a typo. */
   function missing(key) {
     return STRINGS[current][key] === undefined && STRINGS.en[key] === undefined;
@@ -931,7 +962,7 @@ const I18n = (() => {
     });
   });
 
-  return { lang, t, server, formatDate, apply, setLang };
+  return { lang, t, server, formatDate, formatDateShort, apply, setLang };
 })();
 
 const t = I18n.t;

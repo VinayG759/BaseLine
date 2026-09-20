@@ -2098,3 +2098,99 @@ html[lang="kn"], html[lang="hi"],
   .header-actions { gap: 6px; }
   .header-actions .app-select { min-width: 96px; padding-right: 34px; font-size: 0.85rem; }
 }
+
+/* ---------- Comparison with the previous report ---------- */
+/* Said in words first, then drawn as one bar per report. */
+.tc-compare {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--bg-card-subtle);
+  border-left: 4px solid var(--border-strong);
+}
+.tc-compare-rising { border-left-color: var(--danger); }
+.tc-compare-falling { border-left-color: var(--accent); }
+.tc-compare-stable, .tc-compare-first { border-left-color: var(--border-strong); }
+.tc-compare-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.tc-compare-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.45;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.bar-compare { margin: 14px 0 0 0; }
+/* Room above for the value labels and below for the dates. */
+.bc-plot {
+  position: relative;
+  height: 124px;
+  margin: 22px 0 24px 0;
+  border-bottom: 2px solid var(--border-color);
+}
+/* The normal range, behind the bars, measured from the same bottom line. */
+.bc-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--band-fill);
+  border-top: 1px dashed var(--band-stroke);
+  border-bottom: 1px dashed var(--band-stroke);
+}
+.bc-cols {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.bc-col { position: relative; flex: 1; min-width: 0; }
+.bc-bar {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 62%;
+  max-width: 34px;
+  border-radius: 6px 6px 0 0;
+  background: var(--accent);
+}
+.bc-normal { background: var(--accent); }
+.bc-high, .bc-low { background: var(--danger); }
+.bc-unknown { background: var(--border-strong); }
+/* Earlier reports step back so the newest one reads as "now". */
+.bc-col:not(.bc-col-latest) .bc-bar { opacity: 0.5; }
+.bc-value {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.bc-col-latest .bc-value { color: var(--text-main); font-weight: 700; font-size: 0.8rem; }
+.bc-date {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.bc-caption {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}

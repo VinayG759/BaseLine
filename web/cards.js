@@ -121,6 +121,88 @@ function differenceText(value, low, high, unit, status) {
 }
 
 /**
+ * The change since the report before, in plain words: "Up 11 mg/dL since 8 Aug (98 to 109)".
+ *
+ * The arithmetic happens here, on the numbers printed on the reports, never in the model.
+ */
+function comparisonText(trend) {
+  const history = trend.history || [];
+  if (history.length < 2) return t("compare.first");
+  const before = history[history.length - 2];
+  const now = history[history.length - 1];
+  const params = {
+    diff: Math.abs(difference(now.value, before.value)),
+    unit: trend.unit,
+    date: formatDateDisplay(before.date),
+    from: before.value,
+    to: now.value
+  };
+  if (now.value > before.value) return t("compare.up", params);
+  if (now.value < before.value) return t("compare.down", params);
+  return t("compare.same", params);
+}
+
+/** Which side of the printed range one value falls on. */
+function valueStatus(value, low, high) {
+  const hasLow = typeof low === "number";
+  const hasHigh = typeof high === "number";
+  if (hasHigh && value > high) return "high";
+  if (hasLow && value < low) return "low";
+  return hasLow || hasHigh ? "normal" : "unknown";
+}
+
+/**
+ * One upright bar per report, so a rising number is visible without reading anything.
+ *
+ * The shaded band behind the bars is the normal range, and every bar carries its own number,
+ * because the scale starts at the smallest value on show rather than at zero: that is what
+ * makes a move from 5.6 to 6.1 visible at all, but it means bar heights must not be compared
+ * as if they were areas.
+ */
+function comparisonChartHtml(trend) {
+  const history = (trend.history || []).slice(-6);
+  if (history.length === 0) return "";
+  const bounds = history.map((h) => h.value);
+  if (typeof trend.ref_low === "number") bounds.push(trend.ref_low);
+  if (typeof trend.ref_high === "number") bounds.push(trend.ref_high);
+  let min = Math.min(...bounds);
+  let max = Math.max(...bounds);
+  if (min === max) { min -= 1; max += 1; }
+  const span = max - min;
+  min -= span * 0.18;
+  max += span * 0.14;
+  const pct = (v) => Math.max(0, Math.min(100, ((v - min) / (max - min)) * 100));
+
+  let band = "";
+  if (typeof trend.ref_low === "number" || typeof trend.ref_high === "number") {
+    const top = typeof trend.ref_high === "number" ? pct(trend.ref_high) : 100;
+    const bottom = typeof trend.ref_low === "number" ? pct(trend.ref_low) : 0;
+    band = `<div class="bc-band" style="bottom:${bottom.toFixed(1)}%;height:${Math.max(1, top - bottom).toFixed(1)}%"></div>`;
+  }
+
+  // Bar, value label and band all measure from the bottom of the same box, so a bar that
+  // clears the shaded band really is a value above the normal range.
+  const bars = history.map((entry, index) => {
+    const latest = index === history.length - 1;
+    const state = valueStatus(entry.value, trend.ref_low, trend.ref_high);
+    const height = Math.max(3, pct(entry.value)).toFixed(1);
+    return `
+      <div class="bc-col${latest ? " bc-col-latest" : ""}">
+        <span class="bc-value" style="bottom:${height}%">${esc(entry.value)}</span>
+        <div class="bc-bar bc-${esc(state)}" style="height:${height}%"></div>
+        <span class="bc-date">${esc(entry.date ? I18n.formatDateShort(entry.date) : "")}</span>
+      </div>`;
+  }).join("");
+
+  const label = t("chart.barsLabel", { test: trend.test_name, n: history.length, value: trend.current, unit: trend.unit });
+  return `
+    <figure class="bar-compare" role="img" aria-label="${esc(label)}">
+      <div class="bc-plot">${band}<div class="bc-cols">${bars}</div></div>
+      <figcaption class="bc-caption">${esc(t("chart.eachBar"))}</figcaption>
+    </figure>`;
+}
+
+/**
  * Technical Concept: SVG Coordinate Space
  * (0,0) is the top-left, so higher lab numbers get smaller y values to rise upwards on the chart.
  */
@@ -186,9 +268,19 @@ function trendCardHtml(trend) {
   const status = trend.status || "unknown";
   const out = status === "high" || status === "low";
   const dirIcon = DIRECTION_ICON[trend.direction];
-  const history = (trend.history || []).length > 1
-    ? `<div class="tc-history"><span class="tc-history-label">${esc(t("chart.history"))}</span>${createTrendSvgChart(trend)}</div>`
-    : "";
+  const compared = (trend.history || []).length > 1;
+  // The change since last time, said once in words and once as bars.
+  const comparison = `
+    <div class="tc-compare tc-compare-${esc(compared ? trend.direction || "stable" : "first")}">
+      <span class="tc-compare-label">${esc(t("compare.title"))}</span>
+      <p class="tc-compare-text">${esc(comparisonText(trend))}</p>
+    </div>`;
+  const history = compared ? comparisonChartHtml(trend) : "";
+  // Once the comparison block says "up 11 since March", the written sentence repeats it.
+  // It is kept only when it carries something the block doesn't: a run of moves the same
+  // way, or the explanation of a first, uncompared result.
+  const worthSaying = !compared || (trend.streak || 0) >= 2;
+  const written = worthSaying ? `<p class="trend-summary">${esc(trend.summary)}</p>` : "";
   return `
     <article class="card trend-card ${out ? "card-out-of-range" : ""} ${trend.updated ? "trend-card-updated" : ""}"
              tabindex="0" role="button" aria-label="${esc(t("card.tap", { test: trend.test_name }))}"
@@ -204,8 +296,9 @@ function trendCardHtml(trend) {
       </div>
       ${rangeBar(trend.current, trend.ref_low, trend.ref_high, status)}
       <p class="tc-diff tc-diff-${esc(status)}">${esc(differenceText(trend.current, trend.ref_low, trend.ref_high, trend.unit, status))}</p>
+      ${comparison}
       ${history}
-      <p class="trend-summary">${esc(trend.summary)}</p>
+      ${written}
     </article>`;
 }
 
