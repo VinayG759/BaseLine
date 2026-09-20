@@ -18,7 +18,9 @@ foreach ($line in Get-Content $envFile) {
 }
 
 $python = Join-Path $root "backend\.venv\Scripts\python.exe"
-$web = Start-Process $python -ArgumentList "-m", "http.server", "5500" -WorkingDirectory (Join-Path $root "web") -PassThru -WindowStyle Hidden
+# Served with "no-store", so a phone always reloads the current files instead of an old copy.
+$serve = Join-Path $root "backend\scripts\serve_web.py"
+$web = Start-Process $python -ArgumentList $serve, (Join-Path $root "web"), "5500" -WorkingDirectory $root -PassThru -WindowStyle Hidden
 $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -like "Wi-Fi*" -and $_.IPAddress -notlike "169.254.*" } | Select-Object -First 1).IPAddress
 Write-Host "Page:    http://localhost:5500/login.html"
 if ($ip) { Write-Host "Phone:   http://${ip}:5500/login.html  (same Wi-Fi)" }

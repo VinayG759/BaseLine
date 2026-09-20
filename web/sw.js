@@ -5,7 +5,7 @@
  * so the application loads instantly and functions reliably even during spotty connectivity or offline clinic visits.
  */
 
-const CACHE_NAME = "baseline-cache-v5";   // bump to throw away older cached copies
+const CACHE_NAME = "baseline-cache-v6";   // bump to throw away older cached copies
 const ASSETS_TO_CACHE = [
   "./",
   "app.html",
@@ -61,8 +61,10 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
 
   // Network first, so updates show up immediately; the cached copy is only an offline fallback.
+  // "no-store" skips the browser's own HTTP cache as well: without it a phone can keep showing
+  // yesterday's script for hours, because a plain fetch() may answer from that cache.
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-store" })
       .then((networkResponse) => {
         const copy = networkResponse.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));

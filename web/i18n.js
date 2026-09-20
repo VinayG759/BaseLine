@@ -881,9 +881,22 @@ const I18n = (() => {
     }).format(new Date(Date.UTC(y, m - 1, d)));
   }
 
-  /** Fill every element that carries a data-i18n* attribute. */
+  /** True when neither this language nor English has the key: an older i18n.js, or a typo. */
+  function missing(key) {
+    return STRINGS[current][key] === undefined && STRINGS.en[key] === undefined;
+  }
+
+  /**
+   * Fill every element that carries a data-i18n* attribute.
+   *
+   * A key this file doesn't know leaves the element's own text alone. The pages carry
+   * readable English in the markup, so a stale copy of this file shows "Set up your account"
+   * rather than the raw key "landing.ctaSetup".
+   */
   function apply(root = document) {
-    root.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    root.querySelectorAll("[data-i18n]").forEach((el) => {
+      if (!missing(el.dataset.i18n)) el.textContent = t(el.dataset.i18n);
+    });
     root.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
     root.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
     root.querySelectorAll("[data-i18n-alt]").forEach((el) => { el.alt = t(el.dataset.i18nAlt); });
