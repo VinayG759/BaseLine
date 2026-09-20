@@ -810,3 +810,115 @@ def test_api_answers_are_never_stored_by_browsers(client):
     r = client.get("/api/people")
 
     assert r.headers["cache-control"] == "no-store"
+
+
+# ---- Quick analysis for visitors with no account (landing page) ----
+
+def guest(backend, free_analyses_per_hour=5, **overrides):
+    """A visitor: no account, no session token, nothing of theirs on the server."""
+    app = create_app(services_for(backend, **overrides), today=lambda: date(2026, 9, 19),
+                     free_analyses_per_hour=free_analyses_per_hour)
+    return TestClient(app)
+
+
+def analyse(client, image=b"september", lang=None):
+    data = {"lang": lang} if lang else {}
+    return client.post("/api/analyze", data=data, files={"file": ("r.jpg", image, "image/jpeg")})
+
+
+def boom(*_args, **_kwargs):
+    raise AssertionError("a guest analysis must not touch stored data")
+
+
+def test_a_visitor_with_no_account_can_analyse_one_report(backend):
+    r = analyse(guest(backend))
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["saved"] is False
+    assert body["report_date"] == "2026-09-12" and body["lab_name"] == "Sri Sai Diagnostics"
+    assert body["readings"] == [{"test_key": "hba1c", "test_name": "HbA1c", "value": 6.4, "unit": "%",
+                                 "ref_low": 4.0, "ref_high": 5.6, "status": "high"}]
+    assert body["trends"][0]["current"] == 6.4 and body["trends"][0]["direction"] == "first"
+    assert body["summary"]
+
+
+def test_a_guest_analysis_keeps_nothing(backend):
+    analyse(guest(backend))
+
+    assert backend.rows == {} and backend.images == {} and backend.reports == {}
+
+
+def test_a_guest_analysis_never_reads_or_writes_anyone_s_stored_data(backend):
+    client = guest(backend, save_image=boom, save_readings=boom, save_report=boom, load_readings=boom,
+                   list_people=boom, save_person=boom)
+
+    assert analyse(client).status_code == 200
+
+
+def test_a_guest_report_with_no_printed_date_is_still_analysed(backend):
+    # Nothing is saved, so a missing date is no reason to refuse: the reading is simply dated today.
+    r = analyse(guest(backend), image=b"no-date")
+
+    assert r.status_code == 200
+    assert r.json()["report_date"] is None
+    assert r.json()["trends"][0]["history"] == [{"date": "2026-09-19", "value": 6.4}]
+
+
+def test_a_guest_analysis_can_answer_in_kannada(backend):
+    kn = "HbA1c ಸಾಮಾನ್ಯ ವ್ಯಾಪ್ತಿಗಿಂತ ಮೇಲಿದೆ."
+    client = guest(backend, phrase=lambda templates, lang: {"hba1c": kn} if lang == "kn" else templates)
+
+    assert analyse(client, lang="kn").json()["trends"][0]["summary"] == kn
+    english = analyse(client).json()["trends"][0]["summary"]
+    assert english.startswith("First result on record.") and "Above the normal range" in english
+
+
+def test_a_guest_analysis_needs_a_photo(backend):
+    r = guest(backend).post("/api/analyze", data={})
+
+    assert r.status_code == 400
+    assert set(r.json()) == {"error"}
+
+
+def test_a_guest_photo_that_is_not_a_report_gets_a_sentence(backend):
+    r = analyse(guest(backend), image=b"a holiday snap")
+
+    assert r.status_code == 422
+    assert "sharper" in r.json()["error"]
+
+
+def test_a_guest_report_with_no_results_gets_a_sentence(backend):
+    r = analyse(guest(backend), image=b"no-rows")
+
+    assert r.status_code == 422
+    assert "No test results" in r.json()["error"]
+
+
+def test_a_guest_cannot_run_the_reader_over_and_over(backend):
+    client = guest(backend, free_analyses_per_hour=2)
+
+    assert [analyse(client).status_code for _ in range(3)] == [200, 200, 429]
+    assert "account" in analyse(client).json()["error"]
+
+
+def test_one_visitor_using_up_the_cap_does_not_shut_out_the_next_visitor(backend):
+    app = create_app(services_for(backend), today=lambda: date(2026, 9, 19), free_analyses_per_hour=1)
+    phone = TestClient(app, client=("10.0.0.5", 51000))
+    someone_else = TestClient(app, client=("10.0.0.9", 51000))
+    analyse(phone)
+
+    assert analyse(phone).status_code == 429
+    assert analyse(someone_else).status_code == 200
+
+
+def test_the_guest_cap_never_blocks_someone_who_has_logged_in(backend):
+    app = create_app(services_for(backend), today=lambda: date(2026, 9, 19), free_analyses_per_hour=1)
+    visitor = TestClient(app)
+    analyse(visitor)
+    analyse(visitor)   # the cap is now used up for this address
+
+    member = log_in(TestClient(app))
+
+    assert upload(member, b"september").status_code == 200
+    assert preview(member, b"sunita-named").status_code == 200

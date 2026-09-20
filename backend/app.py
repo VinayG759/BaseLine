@@ -13,7 +13,7 @@ import os
 import re
 import uuid
 from dataclasses import asdict, replace
-from datetime import date
+from datetime import date, timedelta
 from typing import Callable
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -32,6 +32,7 @@ from core.extract import ExtractionError
 from core.names import check_report_name
 from core.overall import overall_summary, trends_as_of
 from core.people import PersonError, SelfProfileExists, check_height, check_weight, edit_person, new_person, sort_people
+from core.ratelimit import RateLimit
 from core.reminder import reminder
 from core.reports import Report, ReportError, check_reviewed
 from core.services import Services, aws_services
@@ -44,6 +45,9 @@ IMAGE_FORMATS = {"image/jpeg": "jpeg", "image/png": "png"}
 MAX_QUESTION_CHARS = 500
 NO_REPORTS_REPLY = "There are no reports for this person yet. Add a lab report first, then ask again."
 UNAVAILABLE = "Baseline can’t reach its storage or reading service right now. Try again in a minute."
+FREE_ANALYSES_PER_HOUR = 5
+TOO_MANY_FREE = ("That’s several reports in a short time. Set up an account to keep reading reports, "
+                 "or try again in an hour.")
 
 log = logging.getLogger("baseline")
 
@@ -135,9 +139,12 @@ def create_app(
     today: Callable[[], date] = date.today,
     reword_english: bool = False,
     now: Callable = utc_now,
+    free_analyses_per_hour: int = FREE_ANALYSES_PER_HOUR,
 ) -> FastAPI:
     app = FastAPI(title="Baseline")
     app.state.now = now
+    # Reading a report costs money and /api/analyze needs no login, so one visitor gets a few per hour.
+    free_analyses = RateLimit(limit=free_analyses_per_hour, window=timedelta(hours=1))
     # Checked against when an email doesn't exist, so a wrong email takes as long as a wrong password.
     dummy_hash = hash_password("not a real password")
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -251,6 +258,19 @@ def create_app(
             return _call(services.read_report, image, image_format)
         except ExtractionError as e:
             _fail(422, str(e))
+
+    def analysis_of(readings, taken_on: str, lang: str) -> dict:
+        """One report read on its own: cards and an overall summary, compared with nothing and saved nowhere.
+
+        Used for a report printed with a stranger's name, and for a visitor with no account.
+        """
+        stamped = [replace(r, taken_on=taken_on) for r in readings]
+        trends = sort_trends([compute_trend(group) for group in group_by_test(stamped)])
+        sentences = summarise(trends, lang, services.phrase, reword_english)
+        return {
+            "trends": [{**asdict(t), "summary": sentences[t.test_key], "updated": False} for t in trends],
+            "summary": overall_summary(trends, lang, services.write_summary),
+        }
 
     def build_response(person_id: str, lang: str, report: dict | None, touched: set[str]) -> dict:
         readings = _call(services.load_readings, person_id)
@@ -399,13 +419,7 @@ def create_app(
                 "readings": reading_rows(extracted.readings), "saved": False}
         if name_check["status"] == "different":
             # Helping someone else: show what their report says, keep nothing.
-            stamped = [replace(r, taken_on=taken_on or today().isoformat()) for r in extracted.readings]
-            trends = sort_trends([compute_trend(g) for g in group_by_test(stamped)])
-            sentences = summarise(trends, lang, services.phrase, reword_english)
-            body["analysis"] = {
-                "trends": [{**asdict(t), "summary": sentences[t.test_key], "updated": False} for t in trends],
-                "summary": overall_summary(trends, lang, services.write_summary),
-            }
+            body["analysis"] = analysis_of(extracted.readings, taken_on or today().isoformat(), lang)
         return body
 
     @app.post("/api/reports/confirm")
@@ -436,6 +450,29 @@ def create_app(
         check_name_for_saving(person, owner, data.get("patient_name"), bool(data.get("name_confirmed")))
         return save_new_report(owner, person, readings, report_date, data.get("lab_name"), data.get("patient_name"),
                                image, image_format, lang, height_cm, weight_kg)
+
+    @app.post("/api/analyze")
+    async def analyse_without_an_account(
+        request: Request,
+        file: UploadFile | None = File(None),
+        lang: str | None = Form(None),
+    ):
+        """One report, read for a visitor who has no account. Nothing is stored and nothing is remembered.
+
+        No login, so reading is capped per visitor: the model call costs money.
+        """
+        lang = _check_lang(lang)
+        visitor = request.client.host if request.client else "unknown"
+        if not free_analyses.allow(visitor, app.state.now()):
+            _fail(429, TOO_MANY_FREE)
+        image, image_format = await read_image(file)
+        extracted = extract_or_fail(image, image_format)
+        if not extracted.readings:
+            _fail(422, "No test results were found on this report. Try a sharper, flatter photo.")
+        # A missing date is no reason to refuse: nothing is filed, so today simply labels the reading.
+        analysis = analysis_of(extracted.readings, extracted.report_date or today().isoformat(), lang)
+        return {"report_date": extracted.report_date, "lab_name": extracted.lab_name,
+                "readings": reading_rows(extracted.readings), "saved": False, **analysis}
 
     @app.get("/api/reports")
     def list_reports(person_id: str | None = None, owner: str = Depends(current_owner)):
