@@ -379,6 +379,13 @@ html[lang="kn"], html[lang="hi"],
 .mascot-bubble {
   position: relative;
   flex: 1;
+  min-width: 0;
+  /* A fixed height on purpose: she types her line out letter by letter, and a bubble that
+     grew with it would shove the whole page down a line at a time. Longer lines scroll
+     inside instead, and the text below never moves. */
+  height: 104px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background-color: var(--bg-card);
   border: 2px solid var(--border-color);
   border-radius: 18px;
@@ -388,6 +395,15 @@ html[lang="kn"], html[lang="hi"],
   color: var(--text-main);
   box-shadow: var(--shadow-sm);
   line-height: 1.45;
+  scrollbar-width: thin;
+}
+.mascot-bubble::-webkit-scrollbar { width: 5px; }
+.mascot-bubble::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+@media (min-width: 768px) {
+  .mascot-bubble { height: 92px; }
 }
 
 /* Speech bubble left triangle arrow */

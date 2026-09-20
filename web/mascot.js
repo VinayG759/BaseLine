@@ -172,17 +172,23 @@ const Mascot = (() => {
   function speak(text) {
     clearInterval(typingTimer);
     srText.textContent = text;
+    // The bubble is a fixed size, so a long line scrolls within it; follow the newest words.
+    const bubble = container && container.querySelector(".mascot-bubble");
+    const followText = () => { if (bubble) bubble.scrollTop = bubble.scrollHeight; };
     if (reducedMotion() || !text) {
       visualText.textContent = text;
+      if (bubble) bubble.scrollTop = 0;
       figure.classList.remove("talking");
       return;
     }
     let shown = 0;
     visualText.textContent = "";
+    if (bubble) bubble.scrollTop = 0;
     figure.classList.add("talking");
     typingTimer = setInterval(() => {
       shown = Math.min(text.length, shown + 2);
       visualText.textContent = text.slice(0, shown);
+      followText();
       if (shown >= text.length) {
         clearInterval(typingTimer);
         figure.classList.remove("talking");
