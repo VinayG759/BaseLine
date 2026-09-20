@@ -179,6 +179,15 @@ function comparisonChartHtml(trend) {
     const bottom = typeof trend.ref_low === "number" ? pct(trend.ref_low) : 0;
     band = `<div class="bc-band" style="bottom:${bottom.toFixed(1)}%;height:${Math.max(1, top - bottom).toFixed(1)}%"></div>`;
   }
+  // A line straight across at each printed limit, labelled, so "normal" is a place on the chart.
+  const limitLine = (value, which) => `
+    <div class="bc-limit bc-limit-${which}" style="bottom:${pct(value).toFixed(1)}%">
+      <span class="bc-limit-value">${esc(value)}</span>
+    </div>`;
+  const lines = [
+    typeof trend.ref_high === "number" ? limitLine(trend.ref_high, "high") : "",
+    typeof trend.ref_low === "number" ? limitLine(trend.ref_low, "low") : ""
+  ].join("");
 
   // Bar, value label and band all measure from the bottom of the same box, so a bar that
   // clears the shaded band really is a value above the normal range.
@@ -197,7 +206,7 @@ function comparisonChartHtml(trend) {
   const label = t("chart.barsLabel", { test: trend.test_name, n: history.length, value: trend.current, unit: trend.unit });
   return `
     <figure class="bar-compare" role="img" aria-label="${esc(label)}">
-      <div class="bc-plot">${band}<div class="bc-cols">${bars}</div></div>
+      <div class="bc-plot">${band}${lines}<div class="bc-cols">${bars}</div></div>
       <figcaption class="bc-caption">${esc(t("chart.eachBar"))}</figcaption>
     </figure>`;
 }
@@ -275,7 +284,14 @@ function trendCardHtml(trend) {
       <span class="tc-compare-label">${esc(t("compare.title"))}</span>
       <p class="tc-compare-text">${esc(comparisonText(trend))}</p>
     </div>`;
-  const history = compared ? comparisonChartHtml(trend) : "";
+  // Every test gets bars, a single report included: one bar against the normal lines still
+  // shows where the value sits. The chart waits behind a button so the cards stay scannable.
+  const chartId = `bars-${Math.random().toString(36).slice(2, 9)}`;
+  const history = `
+    <button type="button" class="btn btn-secondary btn-sm tc-compare-btn" aria-expanded="false" aria-controls="${chartId}">
+      ${Icons.svg("bar-chart")}<span class="tc-compare-btn-label">${esc(t("compare.view"))}</span>
+    </button>
+    <div class="tc-chart" id="${chartId}" hidden>${comparisonChartHtml(trend)}</div>`;
   // Once the comparison block says "up 11 since March", the written sentence repeats it.
   // It is kept only when it carries something the block doesn't: a run of moves the same
   // way, or the explanation of a first, uncompared result.
@@ -303,6 +319,20 @@ function trendCardHtml(trend) {
 }
 
 function bindCardTaps(container) {
+  // "View comparison" opens the bars for that one test. The click stops here, so tapping
+  // the button doesn't also count as tapping the card.
+  container.querySelectorAll(".tc-compare-btn").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const chart = document.getElementById(button.getAttribute("aria-controls"));
+      if (!chart) return;
+      const showing = chart.hidden;
+      chart.hidden = !showing;
+      button.setAttribute("aria-expanded", String(showing));
+      button.querySelector(".tc-compare-btn-label").textContent = t(showing ? "compare.hide" : "compare.view");
+    });
+  });
+
   container.querySelectorAll(".trend-card").forEach((card) => {
     const speak = () => {
       const summary = card.getAttribute("data-summary");
