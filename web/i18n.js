@@ -24,6 +24,7 @@ const I18n = (() => {
       "common.madeFor": "Powered by AWS",
       "error.generic": "Something went wrong. Try again.",
       "error.photo": "Couldn't open this photo. Try another one.",
+      "error.notMedical": "This image does not look like a medical lab report. Please upload a clear photo of a medical report.",
 
       "landing.badge": "Powered by AWS",
       "landing.title": "Baseline: a health record that notices",
@@ -294,6 +295,7 @@ const I18n = (() => {
       "common.madeFor": "AWS ಮೂಲಕ ಚಾಲಿತ",
       "error.generic": "ಏನೋ ತಪ್ಪಾಗಿದೆ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
       "error.photo": "ಈ ಫೋಟೋ ತೆರೆಯಲಾಗಲಿಲ್ಲ. ಬೇರೆ ಫೋಟೋ ಪ್ರಯತ್ನಿಸಿ.",
+      "error.notMedical": "ಈ ಚಿತ್ರವು ವೈದ್ಯಕೀಯ ಲ್ಯಾಬ್ ವರದಿಯಂತೆ ಕಾಣುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ವೈದ್ಯಕೀಯ ವರದಿಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.",
 
       "landing.badge": "AWS ಮೂಲಕ ಚಾಲಿತ",
       "landing.title": "Baseline: ಗಮನಿಸುವ ಆರೋಗ್ಯ ದಾಖಲೆ",
@@ -564,6 +566,7 @@ const I18n = (() => {
       "common.madeFor": "AWS द्वारा संचालित",
       "error.generic": "कुछ गड़बड़ हो गई। फिर से कोशिश करें।",
       "error.photo": "यह फ़ोटो नहीं खुली। कोई दूसरी फ़ोटो आज़माएँ।",
+      "error.notMedical": "यह तस्वीर मेडिकल लैब रिपोर्ट जैसी नहीं लग रही है। कृपया किसी मेडिकल रिपोर्ट की साफ़ फ़ोटो अपलोड करें।",
 
       "landing.badge": "AWS द्वारा संचालित",
       "landing.title": "Baseline: एक हेल्थ रिकॉर्ड जो ध्यान रखता है",
@@ -850,6 +853,9 @@ const I18n = (() => {
     "This image couldn’t be read as a lab report. Try a sharper, flatter photo.": {
       kn: "ಈ ಚಿತ್ರವನ್ನು ಲ್ಯಾಬ್ ವರದಿಯಾಗಿ ಓದಲಾಗಲಿಲ್ಲ. ಇನ್ನಷ್ಟು ಸ್ಪಷ್ಟವಾದ, ಸಮತಟ್ಟಾದ ಫೋಟೋ ತೆಗೆಯಿರಿ.",
       hi: "यह फ़ोटो लैब रिपोर्ट की तरह पढ़ी नहीं जा सकी। ज़्यादा साफ़ और सीधी फ़ोटो लें।" },
+    "This image does not look like a medical lab report. Please upload a clear photo of a medical report.": {
+      kn: "ಈ ಚಿತ್ರವು ವೈದ್ಯಕೀಯ ಲ್ಯಾಬ್ ವರದಿಯಂತೆ ಕಾಣುತ್ತಿಲ್ಲ. ದಯವಿಟ್ಟು ವೈದ್ಯಕೀಯ ವರದಿಯ ಸ್ಪಷ್ಟ ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.",
+      hi: "यह तस्वीर मेडिकल लैब रिपोर्ट जैसी नहीं लग रही है। कृपया किसी मेडिकल रिपोर्ट की साफ़ फ़ोटो अपलोड करें।" },
     "Couldn’t read a date on this report. Enter the report date and upload again.": {
       kn: "ಈ ವರದಿಯಲ್ಲಿ ದಿನಾಂಕ ಓದಲಾಗಲಿಲ್ಲ. ವರದಿ ದಿನಾಂಕ ನಮೂದಿಸಿ ಮತ್ತೆ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.",
       hi: "इस रिपोर्ट पर तारीख नहीं पढ़ी जा सकी। रिपोर्ट की तारीख लिखकर फिर से अपलोड करें।" },

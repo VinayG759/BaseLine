@@ -114,9 +114,6 @@ const API = (() => {
 
   /** JSON or form requests to the API with the session token; errors carry the API's sentence. */
   async function call(method, path, body) {
-    if (CONFIG.useMock) {
-      throw new Error(t("error.generic"));   // the review, history and profile flows need the real backend
-    }
     try {
       const options = { method, headers: {} };
       if (body instanceof FormData) {
@@ -143,6 +140,9 @@ const API = (() => {
    * the visitor to the login page. Nothing is stored on the server either.
    */
   async function analyseWithoutAccount(formData) {
+    if (CONFIG.useMock) {
+      return MockAPI.analyseWithoutAccount(formData);
+    }
     try {
       const res = await fetch(`${CONFIG.apiUrl}/api/analyze`, { method: "POST", body: formData });
       if (!res.ok) throw await handleErrorResponse(res);
@@ -157,23 +157,30 @@ const API = (() => {
     analyseWithoutAccount,
 
     /** PATCH /api/people/{id}: only the fields sent change. */
-    updatePerson: (personId, changes) => call("PATCH", `/api/people/${encodeURIComponent(personId)}`, changes),
+    updatePerson: (personId, changes) =>
+      CONFIG.useMock ? MockAPI.updatePerson(personId, changes) : call("PATCH", `/api/people/${encodeURIComponent(personId)}`, changes),
 
     /** POST /api/reports/preview: read the photo and check the name. Saves nothing. */
-    previewReport: (formData) => call("POST", "/api/reports/preview", formData),
+    previewReport: (formData) =>
+      CONFIG.useMock ? MockAPI.previewReport(formData) : call("POST", "/api/reports/preview", formData),
 
     /** POST /api/reports/confirm: save the reviewed values with the photo. */
-    confirmReport: (formData) => call("POST", "/api/reports/confirm", formData),
+    confirmReport: (formData) =>
+      CONFIG.useMock ? MockAPI.confirmReport(formData) : call("POST", "/api/reports/confirm", formData),
 
-    listReports: (personId) => call("GET", `/api/reports?${q({ person_id: personId })}`),
+    listReports: (personId) =>
+      CONFIG.useMock ? MockAPI.listReports(personId) : call("GET", `/api/reports?${q({ person_id: personId })}`),
 
     getReport: (personId, reportId, lang) =>
-      call("GET", `/api/reports/${encodeURIComponent(reportId)}?${q({ person_id: personId, lang })}`),
+      CONFIG.useMock
+        ? MockAPI.getReport(personId, reportId, lang)
+        : call("GET", `/api/reports/${encodeURIComponent(reportId)}?${q({ person_id: personId, lang })}`),
 
-    editReport: (reportId, body) => call("PUT", `/api/reports/${encodeURIComponent(reportId)}`, body),
+    editReport: (reportId, body) =>
+      CONFIG.useMock ? MockAPI.editReport(reportId, body) : call("PUT", `/api/reports/${encodeURIComponent(reportId)}`, body),
 
     deleteReport: (personId, reportId) =>
-      call("DELETE", `/api/reports/${encodeURIComponent(reportId)}?${q({ person_id: personId })}`),
+      CONFIG.useMock ? MockAPI.deleteReport(personId, reportId) : call("DELETE", `/api/reports/${encodeURIComponent(reportId)}?${q({ person_id: personId })}`),
 
     /** Creates the account only; the person then logs in. Returns {email, username}. */
     async register(email, password, username) {

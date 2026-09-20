@@ -93,6 +93,7 @@ const Guest = {
     $("analyze-results").hidden = false;
     // A short line: the summary itself is in the card right below, and she types hers out.
     Mascot.say(t("analyze.mascot"), "pointing");
+    if (typeof launchConfetti === "function") launchConfetti();
     window.scrollTo({ top: 0, behavior: "smooth" });
   },
 

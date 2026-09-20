@@ -428,6 +428,195 @@ const MockAPI = (() => {
         person_id: personId,
         reply: "HbA1c has gone up 2 times in a row, to 6.4 %. It's worth discussing with your doctor."
       };
+    },
+
+    // POST /api/analyze: instant report reading for visitor with no account
+    async analyseWithoutAccount(formData) {
+      await sleep(1500);
+      if (simulatedErrors.upload) {
+        throw new Error(simulatedErrors.upload);
+      }
+      const file = formData.get("file");
+      if (file && typeof isLikelyMedicalReport === "function") {
+        const check = await isLikelyMedicalReport(file);
+        if (!check.isMedical) {
+          throw new Error(t("error.notMedical"));
+        }
+      }
+      const filename = (file && file.name ? file.name.toLowerCase() : "");
+      if (filename && (filename.includes("dog") || filename.includes("cat") || filename.includes("selfie") || filename.includes("food") || filename.includes("receipt") || filename.includes("random") || filename.includes("invalid"))) {
+        throw new Error(t("error.notMedical"));
+      }
+      return {
+        report_date: "2026-09-12",
+        lab_name: "Sri Sai Diagnostics",
+        readings: [
+          { test_key: "fastingbloodglucose", test_name: "Fasting Blood Glucose", value: 118, unit: "mg/dL", ref_low: 70, ref_high: 100, status: "high" },
+          { test_key: "hba1c", test_name: "HbA1c", value: 6.4, unit: "%", ref_low: 4.0, ref_high: 5.6, status: "high" },
+          { test_key: "haemoglobin", test_name: "Haemoglobin", value: 13.8, unit: "g/dL", ref_low: 13.0, ref_high: 17.0, status: "normal" }
+        ],
+        trends: [
+          { test_key: "fastingbloodglucose", test_name: "Fasting Blood Glucose", unit: "mg/dL", ref_low: 70, ref_high: 100, current: 118, previous: null, direction: "first", streak: 0, status: "high", history: [{ date: "2026-09-12", value: 118 }], summary: "Above the normal range (70–100 mg/dL).", updated: false },
+          { test_key: "hba1c", test_name: "HbA1c", unit: "%", ref_low: 4.0, ref_high: 5.6, current: 6.4, previous: null, direction: "first", streak: 0, status: "high", history: [{ date: "2026-09-12", value: 6.4 }], summary: "Above the normal range (4–5.6 %).", updated: false },
+          { test_key: "haemoglobin", test_name: "Haemoglobin", unit: "g/dL", ref_low: 13.0, ref_high: 17.0, current: 13.8, previous: null, direction: "first", streak: 0, status: "normal", history: [{ date: "2026-09-12", value: 13.8 }], summary: "Within the normal range.", updated: false }
+        ],
+        summary: "Fasting Blood Glucose (118 mg/dL) and HbA1c (6.4%) are above normal ranges. Haemoglobin is healthy at 13.8 g/dL.",
+        saved: false
+      };
+    },
+
+    // POST /api/reports/preview: preview photo readings
+    async previewReport(formData) {
+      await sleep(1500);
+      if (simulatedErrors.upload) {
+        throw new Error(simulatedErrors.upload);
+      }
+      const file = formData.get("file");
+      if (file && typeof isLikelyMedicalReport === "function") {
+        const check = await isLikelyMedicalReport(file);
+        if (!check.isMedical) {
+          throw new Error(t("error.notMedical"));
+        }
+      }
+      const filename = (file && file.name ? file.name.toLowerCase() : "");
+      if (filename && (filename.includes("dog") || filename.includes("cat") || filename.includes("selfie") || filename.includes("food") || filename.includes("receipt") || filename.includes("random") || filename.includes("invalid"))) {
+        throw new Error(t("error.notMedical"));
+      }
+      const personId = formData.get("person_id");
+      const person = people.find((p) => p.person_id === personId) || people[0];
+      return {
+        person_id: person.person_id,
+        name_check: { status: "same", detected_name: person.display_name },
+        report_date: formData.get("report_date") || "2026-09-12",
+        lab_name: "Sri Sai Diagnostics",
+        patient_name: person.display_name,
+        readings: [
+          { test_key: "fastingbloodglucose", test_name: "Fasting Blood Glucose", value: 118, unit: "mg/dL", ref_low: 70, ref_high: 100, status: "high" },
+          { test_key: "hba1c", test_name: "HbA1c", value: 6.4, unit: "%", ref_low: 4.0, ref_high: 5.6, status: "high" },
+          { test_key: "haemoglobin", test_name: "Haemoglobin", value: 13.8, unit: "g/dL", ref_low: 13.0, ref_high: 17.0, status: "normal" }
+        ],
+        saved: false
+      };
+    },
+
+    // POST /api/reports/confirm: save reviewed report
+    async confirmReport(formData) {
+      await sleep(1200);
+      const personId = formData.get("person_id");
+      let payload = {};
+      try { payload = JSON.parse(formData.get("payload") || "{}"); } catch (e) {}
+      if (personId === "sunita-rao-4f2a") {
+        sunitaState = "after";
+      }
+      justUploaded = true;
+      const lang = payload.lang || "en";
+      const trendsResult = await this.getTrends(personId, lang);
+      trendsResult.trends.forEach((t) => (t.updated = true));
+      return {
+        ...trendsResult,
+        report: {
+          report_id: "mock-report-0912",
+          report_date: payload.report_date || "2026-09-12",
+          lab_name: payload.lab_name || "Sri Sai Diagnostics",
+          patient_name: payload.patient_name || "Mrs Sunita Rao",
+          summary: "Fasting Blood Glucose and HbA1c have risen above the normal range. Haemoglobin remains normal."
+        }
+      };
+    },
+
+    // GET /api/reports: list reports
+    async listReports(personId) {
+      await sleep(200);
+      if (personId === "sunita-rao-4f2a") {
+        const isAfter = sunitaState === "after";
+        const reports = [
+          ...(isAfter ? [{
+            report_id: "mock-report-0912",
+            report_date: "2026-09-12",
+            lab_name: "Sri Sai Diagnostics",
+            patient_name: "Mrs. Sunita Rao",
+            uploaded_at: "2026-09-12T08:30:00Z",
+            height_cm: 158,
+            weight_kg: 62,
+            result_count: 3
+          }] : []),
+          {
+            report_id: "mock-report-0808",
+            report_date: "2026-08-08",
+            lab_name: "Sri Sai Diagnostics",
+            patient_name: "Mrs. Sunita Rao",
+            uploaded_at: "2026-08-08T09:00:00Z",
+            height_cm: 158,
+            weight_kg: 62,
+            result_count: 3
+          },
+          {
+            report_id: "mock-report-0304",
+            report_date: "2026-03-04",
+            lab_name: "Apollo Clinic",
+            patient_name: "Mrs. Sunita Rao",
+            uploaded_at: "2026-03-04T10:15:00Z",
+            height_cm: 158,
+            weight_kg: 63,
+            result_count: 3
+          }
+        ];
+        return { person_id: personId, reports };
+      }
+      return { person_id: personId, reports: [] };
+    },
+
+    // GET /api/reports/{id}: report detail
+    async getReport(personId, reportId, lang = "en") {
+      await sleep(250);
+      return {
+        report_id: reportId,
+        report_date: reportId.includes("0912") ? "2026-09-12" : reportId.includes("0808") ? "2026-08-08" : "2026-03-04",
+        lab_name: reportId.includes("0304") ? "Apollo Clinic" : "Sri Sai Diagnostics",
+        patient_name: "Mrs. Sunita Rao",
+        image_url: null,
+        height_cm: 158,
+        weight_kg: 62,
+        readings: [
+          { test_key: "fastingbloodglucose", test_name: "Fasting Blood Glucose", value: reportId.includes("0912") ? 118 : reportId.includes("0808") ? 109 : 98, unit: "mg/dL", ref_low: 70, ref_high: 100, status: reportId.includes("0304") ? "normal" : "high" },
+          { test_key: "hba1c", test_name: "HbA1c", value: reportId.includes("0912") ? 6.4 : reportId.includes("0808") ? 6.1 : 5.6, unit: "%", ref_low: 4.0, ref_high: 5.6, status: reportId.includes("0304") ? "normal" : "high" },
+          { test_key: "haemoglobin", test_name: "Haemoglobin", value: reportId.includes("0912") ? 13.8 : reportId.includes("0808") ? 13.6 : 13.9, unit: "g/dL", ref_low: 13.0, ref_high: 17.0, status: "normal" }
+        ],
+        summary: "Fasting Blood Glucose and HbA1c have tracked higher over recent months while Haemoglobin is steady."
+      };
+    },
+
+    // PATCH /api/people/{id}: update person
+    async updatePerson(personId, changes = {}) {
+      await sleep(200);
+      const person = people.find((p) => p.person_id === personId);
+      if (!person) throw new Error("Person not found.");
+      Object.assign(person, changes);
+      if (changes.name || changes.title) {
+        person.display_name = changes.title ? `${changes.title} ${changes.name || person.name}` : (changes.name || person.name);
+      }
+      return person;
+    },
+
+    // PUT /api/reports/{id}: edit report
+    async editReport(reportId, body) {
+      await sleep(300);
+      const personId = body.person_id || "sunita-rao-4f2a";
+      const trendsResult = await this.getTrends(personId, body.lang || "en");
+      return {
+        ...trendsResult,
+        report: {
+          report_id: reportId,
+          report_date: body.report_date || "2026-09-12",
+          summary: "Report values updated successfully."
+        }
+      };
+    },
+
+    // DELETE /api/reports/{id}: delete report
+    async deleteReport(personId, reportId) {
+      await sleep(200);
+      return { ok: true };
     }
   };
 })();

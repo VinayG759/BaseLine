@@ -818,6 +818,7 @@ const BaselineApp = {
     overlay.querySelector(".celebration-title").textContent = title;
     overlay.querySelector(".celebration-subtitle").textContent = subtitle;
     overlay.classList.add("active");
+    if (typeof launchConfetti === "function") launchConfetti();
     setTimeout(() => overlay.classList.remove("active"), 2600);
   },
 

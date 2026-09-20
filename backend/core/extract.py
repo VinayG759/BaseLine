@@ -10,13 +10,17 @@ from dataclasses import dataclass
 from core.trends import Reading
 
 UNREADABLE = "This image couldn’t be read as a lab report. Try a sharper, flatter photo."
+NOT_A_REPORT = "This image does not look like a medical lab report. Please upload a clear photo of a medical report."
 
-PROMPT = """You are reading a photo of a printed medical lab report.
+PROMPT = """You are a medical document verification and reading assistant.
+FIRST, verify whether the uploaded image is a genuine medical lab test report (such as blood test, urine test, lipid profile, CBC, metabolic panel, pathology or diagnostic lab report).
+
 Return ONLY a JSON object, with no other text, in exactly this shape:
-{"report_date": "YYYY-MM-DD or null", "lab_name": "string or null", "patient_name": "string or null",
+{"is_medical_report": true, "report_date": "YYYY-MM-DD or null", "lab_name": "string or null", "patient_name": "string or null",
  "readings": [{"test_name": "...", "value": 0.0, "unit": "...", "ref_low": 0.0, "ref_high": 0.0}]}
 
 Rules:
+- If the image is NOT a medical lab report (for example: a photo of a person, animal, food, scenery, receipt, bill, prescription drug box, or non-medical document), return {"is_medical_report": false, "report_date": null, "lab_name": null, "patient_name": null, "readings": []}.
 - Copy every value exactly as printed. Never estimate, round or correct a number.
 - A range printed "4.0 - 5.6" means ref_low 4.0 and ref_high 5.6.
 - A range printed "< 200" means ref_low null and ref_high 200. "> 40" means ref_low 40 and ref_high null.
@@ -24,8 +28,7 @@ Rules:
 - Skip any row whose result is not a number (for example "Negative" or "Pale yellow").
 - Ignore the "H" or "L" flags next to results; they are not part of the value.
 - report_date is the date the sample was collected or reported, as YYYY-MM-DD. Use null if you cannot read it.
-- patient_name is the patient's name exactly as printed (with any title). Use null if no name is printed.
-- If this is not a lab report, return {"report_date": null, "lab_name": null, "readings": []}."""
+- patient_name is the patient's name exactly as printed (with any title). Use null if no name is printed."""
 
 
 class ExtractionError(Exception):
@@ -71,6 +74,8 @@ def parse(text: str) -> Extracted:
         raise ExtractionError(UNREADABLE)
     if not isinstance(data, dict) or not isinstance(data.get("readings"), list):
         raise ExtractionError(UNREADABLE)
+    if data.get("is_medical_report") is False:
+        raise ExtractionError(NOT_A_REPORT)
 
     readings = []
     for row in data["readings"]:

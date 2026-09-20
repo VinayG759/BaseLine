@@ -73,6 +73,94 @@ async function shrinkImage(file, maxDimension = 2000, quality = 0.88) {
   });
 }
 
+/**
+ * Verifies whether an uploaded image has the visual and structural characteristics
+ * of a printed medical lab report (paper background, dark text lines, low saturation)
+ * vs a non-medical photo (selfie, scenery, food, object, vibrant graphic).
+ */
+async function isLikelyMedicalReport(blob) {
+  return new Promise((resolve) => {
+    if (!blob) return resolve({ isMedical: false });
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve({ isMedical: false });
+    };
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const sampleSize = 120;
+        const canvas = document.createElement("canvas");
+        canvas.width = sampleSize;
+        canvas.height = sampleSize;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+        const data = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
+
+        let paperPixels = 0;
+        let darkInkPixels = 0;
+        let highSaturationPixels = 0;
+        let totalLuminance = 0;
+        const totalPixels = sampleSize * sampleSize;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const delta = max - min;
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          totalLuminance += lum;
+
+          const sat = max === 0 ? 0 : delta / max;
+
+          // Saturated colors (natural scenes, faces, clothes, food, graphics)
+          if (sat > 0.28 && lum > 35 && lum < 225) {
+            highSaturationPixels++;
+          }
+
+          // Paper document background (light, neutral white/gray)
+          if (lum > 140 && sat < 0.24) {
+            paperPixels++;
+          }
+
+          // Dark printed ink / table borders / text
+          if (lum < 115) {
+            darkInkPixels++;
+          }
+        }
+
+        const avgLuminance = totalLuminance / totalPixels;
+        const paperRatio = paperPixels / totalPixels;
+        const saturationRatio = highSaturationPixels / totalPixels;
+        const darkInkRatio = darkInkPixels / totalPixels;
+
+        // Medical report validation criteria
+        const isDocBackground = paperRatio > 0.35 || (avgLuminance > 135 && saturationRatio < 0.24);
+        const notOverlySaturated = saturationRatio < 0.26;
+        const hasTextInk = darkInkRatio > 0.015;
+        const notPitchDark = avgLuminance > 75;
+
+        const isMedical = isDocBackground && notOverlySaturated && hasTextInk && notPitchDark;
+
+        resolve({
+          isMedical,
+          paperRatio,
+          saturationRatio,
+          darkInkRatio,
+          avgLuminance
+        });
+      } catch (err) {
+        resolve({ isMedical: true });
+      }
+    };
+    img.src = url;
+  });
+}
+
 /** Every distinct report date for a person, oldest first (the dates live inside each trend's history). */
 function collectReportDates(data) {
   if (!data || !Array.isArray(data.trends)) return [];
@@ -369,4 +457,75 @@ function valuesTableHtml(rows) {
         </tr>`).join("")}
       </tbody>
     </table>`;
+}
+
+/**
+ * Duolingo-style celebration confetti burst using HTML5 Canvas.
+ * Self-contained, lightweight, automatically cleans up after 2.5s.
+ */
+function launchConfetti() {
+  if (typeof window === "undefined" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+  const canvas = document.createElement("canvas");
+  canvas.className = "confetti-canvas";
+  canvas.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;";
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext("2d");
+  const width = (canvas.width = window.innerWidth);
+  const height = (canvas.height = window.innerHeight);
+
+  const colors = ["#58cc02", "#1cb0f6", "#ff4b4b", "#ff9600", "#ce82ff", "#ffd700", "#2dd4bf"];
+  const count = 70;
+  const particles = [];
+
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: width * (0.35 + Math.random() * 0.3),
+      y: height * 0.5,
+      w: 8 + Math.random() * 8,
+      h: 5 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 16,
+      vy: -10 - Math.random() * 12,
+      rotation: Math.random() * 360,
+      vRotation: (Math.random() - 0.5) * 14,
+      gravity: 0.42,
+      opacity: 1
+    });
+  }
+
+  let animationFrame;
+  const startTime = Date.now();
+
+  function render() {
+    ctx.clearRect(0, 0, width, height);
+    const elapsed = Date.now() - startTime;
+    particles.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.gravity;
+      p.vx *= 0.98;
+      p.rotation += p.vRotation;
+      if (elapsed > 1600) {
+        p.opacity = Math.max(0, p.opacity - 0.03);
+      }
+
+      ctx.save();
+      ctx.globalAlpha = p.opacity;
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+
+    if (elapsed < 2400) {
+      animationFrame = requestAnimationFrame(render);
+    } else {
+      cancelAnimationFrame(animationFrame);
+      canvas.remove();
+    }
+  }
+
+  animationFrame = requestAnimationFrame(render);
 }

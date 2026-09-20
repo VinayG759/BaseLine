@@ -10,7 +10,7 @@ const CONFIG = {
   apiUrl: `${location.protocol}//${location.hostname}:8000`,
 
   // When true, all API calls use mock.js with realistic delays and no backend needed.
-  useMock: false,
+  useMock: true,
 
   // Name of the doctor mascot.
   mascotName: "Dr. Bindu"
